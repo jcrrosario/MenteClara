@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../db/app_database.dart';
 import 'new_record_page.dart';
+import 'record_detail_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -163,7 +164,16 @@ class _HomePageState extends State<HomePage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
+
             child: ListTile(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RecordDetailPage(record: r),
+                  ),
+                );
+              },
               title: Text(
                 r.emotion,
                 style: const TextStyle(fontWeight: FontWeight.w600),

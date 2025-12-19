@@ -45,7 +45,7 @@ class _NewRecordPageState extends State<NewRecordPage> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Novo registro'),
+        title: const Text('Registro de pensamento diário'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -53,14 +53,14 @@ class _NewRecordPageState extends State<NewRecordPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Pensamento', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('A situação', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextField(
                 controller: _thoughtController,
                 maxLines: 3,
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
-                  hintText: 'Ex: Vou falhar na reunião.',
+                  hintText: 'O que aconteceu? Onde você estava? Quem estava com você?',
                   border: OutlineInputBorder(),
                 ),
               ),
