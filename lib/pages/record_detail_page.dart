@@ -14,6 +14,8 @@ class RecordDetailPage extends StatelessWidget {
     return '${two(dt.day)}/${two(dt.month)}/${dt.year}  ${two(dt.hour)}:${two(dt.minute)}';
   }
 
+  bool _hasText(String? v) => v != null && v.trim().isNotEmpty;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -51,9 +53,23 @@ class RecordDetailPage extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            _sectionTitle('Pensamento'),
+            _sectionTitle('Situação'),
             const SizedBox(height: 8),
             _cardText(record.thought),
+
+            if (_hasText(record.thoughtAlt)) ...[
+              const SizedBox(height: 16),
+              _sectionTitle('O Pensamento'),
+              const SizedBox(height: 8),
+              _cardText(record.thoughtAlt!.trim()),
+            ],
+
+            if (_hasText(record.behavior)) ...[
+              const SizedBox(height: 16),
+              _sectionTitle('O que você fez?'),
+              const SizedBox(height: 8),
+              _cardText(record.behavior!.trim()),
+            ],
 
             const SizedBox(height: 16),
 

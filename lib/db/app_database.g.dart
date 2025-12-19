@@ -33,6 +33,17 @@ class $RecordsTable extends Records
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _thoughtAltMeta = const VerificationMeta(
+    'thoughtAlt',
+  );
+  @override
+  late final GeneratedColumn<String> thoughtAlt = GeneratedColumn<String>(
+    'thought_alt',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _emotionMeta = const VerificationMeta(
     'emotion',
   );
@@ -43,6 +54,17 @@ class $RecordsTable extends Records
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _behaviorMeta = const VerificationMeta(
+    'behavior',
+  );
+  @override
+  late final GeneratedColumn<String> behavior = GeneratedColumn<String>(
+    'behavior',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _intensityMeta = const VerificationMeta(
     'intensity',
@@ -70,7 +92,9 @@ class $RecordsTable extends Records
   List<GeneratedColumn> get $columns => [
     id,
     thought,
+    thoughtAlt,
     emotion,
+    behavior,
     intensity,
     createdAt,
   ];
@@ -97,6 +121,12 @@ class $RecordsTable extends Records
     } else if (isInserting) {
       context.missing(_thoughtMeta);
     }
+    if (data.containsKey('thought_alt')) {
+      context.handle(
+        _thoughtAltMeta,
+        thoughtAlt.isAcceptableOrUnknown(data['thought_alt']!, _thoughtAltMeta),
+      );
+    }
     if (data.containsKey('emotion')) {
       context.handle(
         _emotionMeta,
@@ -104,6 +134,12 @@ class $RecordsTable extends Records
       );
     } else if (isInserting) {
       context.missing(_emotionMeta);
+    }
+    if (data.containsKey('behavior')) {
+      context.handle(
+        _behaviorMeta,
+        behavior.isAcceptableOrUnknown(data['behavior']!, _behaviorMeta),
+      );
     }
     if (data.containsKey('intensity')) {
       context.handle(
@@ -138,10 +174,18 @@ class $RecordsTable extends Records
         DriftSqlType.string,
         data['${effectivePrefix}thought'],
       )!,
+      thoughtAlt: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}thought_alt'],
+      ),
       emotion: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}emotion'],
       )!,
+      behavior: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}behavior'],
+      ),
       intensity: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}intensity'],
@@ -162,13 +206,17 @@ class $RecordsTable extends Records
 class ThoughtRecord extends DataClass implements Insertable<ThoughtRecord> {
   final int id;
   final String thought;
+  final String? thoughtAlt;
   final String emotion;
+  final String? behavior;
   final int intensity;
   final DateTime createdAt;
   const ThoughtRecord({
     required this.id,
     required this.thought,
+    this.thoughtAlt,
     required this.emotion,
+    this.behavior,
     required this.intensity,
     required this.createdAt,
   });
@@ -177,7 +225,13 @@ class ThoughtRecord extends DataClass implements Insertable<ThoughtRecord> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['thought'] = Variable<String>(thought);
+    if (!nullToAbsent || thoughtAlt != null) {
+      map['thought_alt'] = Variable<String>(thoughtAlt);
+    }
     map['emotion'] = Variable<String>(emotion);
+    if (!nullToAbsent || behavior != null) {
+      map['behavior'] = Variable<String>(behavior);
+    }
     map['intensity'] = Variable<int>(intensity);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -187,7 +241,13 @@ class ThoughtRecord extends DataClass implements Insertable<ThoughtRecord> {
     return RecordsCompanion(
       id: Value(id),
       thought: Value(thought),
+      thoughtAlt: thoughtAlt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(thoughtAlt),
       emotion: Value(emotion),
+      behavior: behavior == null && nullToAbsent
+          ? const Value.absent()
+          : Value(behavior),
       intensity: Value(intensity),
       createdAt: Value(createdAt),
     );
@@ -201,7 +261,9 @@ class ThoughtRecord extends DataClass implements Insertable<ThoughtRecord> {
     return ThoughtRecord(
       id: serializer.fromJson<int>(json['id']),
       thought: serializer.fromJson<String>(json['thought']),
+      thoughtAlt: serializer.fromJson<String?>(json['thoughtAlt']),
       emotion: serializer.fromJson<String>(json['emotion']),
+      behavior: serializer.fromJson<String?>(json['behavior']),
       intensity: serializer.fromJson<int>(json['intensity']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -212,7 +274,9 @@ class ThoughtRecord extends DataClass implements Insertable<ThoughtRecord> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'thought': serializer.toJson<String>(thought),
+      'thoughtAlt': serializer.toJson<String?>(thoughtAlt),
       'emotion': serializer.toJson<String>(emotion),
+      'behavior': serializer.toJson<String?>(behavior),
       'intensity': serializer.toJson<int>(intensity),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -221,13 +285,17 @@ class ThoughtRecord extends DataClass implements Insertable<ThoughtRecord> {
   ThoughtRecord copyWith({
     int? id,
     String? thought,
+    Value<String?> thoughtAlt = const Value.absent(),
     String? emotion,
+    Value<String?> behavior = const Value.absent(),
     int? intensity,
     DateTime? createdAt,
   }) => ThoughtRecord(
     id: id ?? this.id,
     thought: thought ?? this.thought,
+    thoughtAlt: thoughtAlt.present ? thoughtAlt.value : this.thoughtAlt,
     emotion: emotion ?? this.emotion,
+    behavior: behavior.present ? behavior.value : this.behavior,
     intensity: intensity ?? this.intensity,
     createdAt: createdAt ?? this.createdAt,
   );
@@ -235,7 +303,11 @@ class ThoughtRecord extends DataClass implements Insertable<ThoughtRecord> {
     return ThoughtRecord(
       id: data.id.present ? data.id.value : this.id,
       thought: data.thought.present ? data.thought.value : this.thought,
+      thoughtAlt: data.thoughtAlt.present
+          ? data.thoughtAlt.value
+          : this.thoughtAlt,
       emotion: data.emotion.present ? data.emotion.value : this.emotion,
+      behavior: data.behavior.present ? data.behavior.value : this.behavior,
       intensity: data.intensity.present ? data.intensity.value : this.intensity,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -246,7 +318,9 @@ class ThoughtRecord extends DataClass implements Insertable<ThoughtRecord> {
     return (StringBuffer('ThoughtRecord(')
           ..write('id: $id, ')
           ..write('thought: $thought, ')
+          ..write('thoughtAlt: $thoughtAlt, ')
           ..write('emotion: $emotion, ')
+          ..write('behavior: $behavior, ')
           ..write('intensity: $intensity, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -254,14 +328,24 @@ class ThoughtRecord extends DataClass implements Insertable<ThoughtRecord> {
   }
 
   @override
-  int get hashCode => Object.hash(id, thought, emotion, intensity, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    thought,
+    thoughtAlt,
+    emotion,
+    behavior,
+    intensity,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ThoughtRecord &&
           other.id == this.id &&
           other.thought == this.thought &&
+          other.thoughtAlt == this.thoughtAlt &&
           other.emotion == this.emotion &&
+          other.behavior == this.behavior &&
           other.intensity == this.intensity &&
           other.createdAt == this.createdAt);
 }
@@ -269,20 +353,26 @@ class ThoughtRecord extends DataClass implements Insertable<ThoughtRecord> {
 class RecordsCompanion extends UpdateCompanion<ThoughtRecord> {
   final Value<int> id;
   final Value<String> thought;
+  final Value<String?> thoughtAlt;
   final Value<String> emotion;
+  final Value<String?> behavior;
   final Value<int> intensity;
   final Value<DateTime> createdAt;
   const RecordsCompanion({
     this.id = const Value.absent(),
     this.thought = const Value.absent(),
+    this.thoughtAlt = const Value.absent(),
     this.emotion = const Value.absent(),
+    this.behavior = const Value.absent(),
     this.intensity = const Value.absent(),
     this.createdAt = const Value.absent(),
   });
   RecordsCompanion.insert({
     this.id = const Value.absent(),
     required String thought,
+    this.thoughtAlt = const Value.absent(),
     required String emotion,
+    this.behavior = const Value.absent(),
     required int intensity,
     required DateTime createdAt,
   }) : thought = Value(thought),
@@ -292,14 +382,18 @@ class RecordsCompanion extends UpdateCompanion<ThoughtRecord> {
   static Insertable<ThoughtRecord> custom({
     Expression<int>? id,
     Expression<String>? thought,
+    Expression<String>? thoughtAlt,
     Expression<String>? emotion,
+    Expression<String>? behavior,
     Expression<int>? intensity,
     Expression<DateTime>? createdAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (thought != null) 'thought': thought,
+      if (thoughtAlt != null) 'thought_alt': thoughtAlt,
       if (emotion != null) 'emotion': emotion,
+      if (behavior != null) 'behavior': behavior,
       if (intensity != null) 'intensity': intensity,
       if (createdAt != null) 'created_at': createdAt,
     });
@@ -308,14 +402,18 @@ class RecordsCompanion extends UpdateCompanion<ThoughtRecord> {
   RecordsCompanion copyWith({
     Value<int>? id,
     Value<String>? thought,
+    Value<String?>? thoughtAlt,
     Value<String>? emotion,
+    Value<String?>? behavior,
     Value<int>? intensity,
     Value<DateTime>? createdAt,
   }) {
     return RecordsCompanion(
       id: id ?? this.id,
       thought: thought ?? this.thought,
+      thoughtAlt: thoughtAlt ?? this.thoughtAlt,
       emotion: emotion ?? this.emotion,
+      behavior: behavior ?? this.behavior,
       intensity: intensity ?? this.intensity,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -330,8 +428,14 @@ class RecordsCompanion extends UpdateCompanion<ThoughtRecord> {
     if (thought.present) {
       map['thought'] = Variable<String>(thought.value);
     }
+    if (thoughtAlt.present) {
+      map['thought_alt'] = Variable<String>(thoughtAlt.value);
+    }
     if (emotion.present) {
       map['emotion'] = Variable<String>(emotion.value);
+    }
+    if (behavior.present) {
+      map['behavior'] = Variable<String>(behavior.value);
     }
     if (intensity.present) {
       map['intensity'] = Variable<int>(intensity.value);
@@ -347,7 +451,9 @@ class RecordsCompanion extends UpdateCompanion<ThoughtRecord> {
     return (StringBuffer('RecordsCompanion(')
           ..write('id: $id, ')
           ..write('thought: $thought, ')
+          ..write('thoughtAlt: $thoughtAlt, ')
           ..write('emotion: $emotion, ')
+          ..write('behavior: $behavior, ')
           ..write('intensity: $intensity, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -370,7 +476,9 @@ typedef $$RecordsTableCreateCompanionBuilder =
     RecordsCompanion Function({
       Value<int> id,
       required String thought,
+      Value<String?> thoughtAlt,
       required String emotion,
+      Value<String?> behavior,
       required int intensity,
       required DateTime createdAt,
     });
@@ -378,7 +486,9 @@ typedef $$RecordsTableUpdateCompanionBuilder =
     RecordsCompanion Function({
       Value<int> id,
       Value<String> thought,
+      Value<String?> thoughtAlt,
       Value<String> emotion,
+      Value<String?> behavior,
       Value<int> intensity,
       Value<DateTime> createdAt,
     });
@@ -402,8 +512,18 @@ class $$RecordsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get thoughtAlt => $composableBuilder(
+    column: $table.thoughtAlt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get emotion => $composableBuilder(
     column: $table.emotion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get behavior => $composableBuilder(
+    column: $table.behavior,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -437,8 +557,18 @@ class $$RecordsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get thoughtAlt => $composableBuilder(
+    column: $table.thoughtAlt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get emotion => $composableBuilder(
     column: $table.emotion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get behavior => $composableBuilder(
+    column: $table.behavior,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -468,8 +598,16 @@ class $$RecordsTableAnnotationComposer
   GeneratedColumn<String> get thought =>
       $composableBuilder(column: $table.thought, builder: (column) => column);
 
+  GeneratedColumn<String> get thoughtAlt => $composableBuilder(
+    column: $table.thoughtAlt,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get emotion =>
       $composableBuilder(column: $table.emotion, builder: (column) => column);
+
+  GeneratedColumn<String> get behavior =>
+      $composableBuilder(column: $table.behavior, builder: (column) => column);
 
   GeneratedColumn<int> get intensity =>
       $composableBuilder(column: $table.intensity, builder: (column) => column);
@@ -511,13 +649,17 @@ class $$RecordsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 Value<String> thought = const Value.absent(),
+                Value<String?> thoughtAlt = const Value.absent(),
                 Value<String> emotion = const Value.absent(),
+                Value<String?> behavior = const Value.absent(),
                 Value<int> intensity = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
               }) => RecordsCompanion(
                 id: id,
                 thought: thought,
+                thoughtAlt: thoughtAlt,
                 emotion: emotion,
+                behavior: behavior,
                 intensity: intensity,
                 createdAt: createdAt,
               ),
@@ -525,13 +667,17 @@ class $$RecordsTableTableManager
               ({
                 Value<int> id = const Value.absent(),
                 required String thought,
+                Value<String?> thoughtAlt = const Value.absent(),
                 required String emotion,
+                Value<String?> behavior = const Value.absent(),
                 required int intensity,
                 required DateTime createdAt,
               }) => RecordsCompanion.insert(
                 id: id,
                 thought: thought,
+                thoughtAlt: thoughtAlt,
                 emotion: emotion,
+                behavior: behavior,
                 intensity: intensity,
                 createdAt: createdAt,
               ),

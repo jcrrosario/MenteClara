@@ -97,7 +97,9 @@ class _HomePageState extends State<HomePage> {
 
     await _db.insertRecord(
       thought: thought,
+      thoughtAlt: result['thoughtAlt'],
       emotion: emotion,
+      behavior: result['behavior'],
       intensity: intensity,
       createdAt: createdAt,
     );

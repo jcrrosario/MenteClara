@@ -9,13 +9,18 @@ class NewRecordPage extends StatefulWidget {
 
 class _NewRecordPageState extends State<NewRecordPage> {
   final _thoughtController = TextEditingController();
+  final _thoughtAltController = TextEditingController();
   final _emotionController = TextEditingController();
+  final _behaviorController = TextEditingController();
+
   double _intensity = 5;
 
   @override
   void dispose() {
     _thoughtController.dispose();
+    _thoughtAltController.dispose();
     _emotionController.dispose();
+    _behaviorController.dispose();
     super.dispose();
   }
 
@@ -25,14 +30,16 @@ class _NewRecordPageState extends State<NewRecordPage> {
 
     if (thought.isEmpty || emotion.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preenche pensamento e emoção.')),
+        const SnackBar(content: Text('Pensamento e emoção são obrigatórios')),
       );
       return;
     }
 
     Navigator.pop(context, {
       'thought': thought,
+      'thoughtAlt': _thoughtAltController.text.trim(),
       'emotion': emotion,
+      'behavior': _behaviorController.text.trim(),
       'intensity': _intensity.round(),
       'createdAt': DateTime.now().toIso8601String(),
     });
@@ -45,7 +52,7 @@ class _NewRecordPageState extends State<NewRecordPage> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Registro de pensamento diário'),
+        title: const Text('Registro pensamento diário'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -53,31 +60,53 @@ class _NewRecordPageState extends State<NewRecordPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('A situação', style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text('A Situação', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextField(
                 controller: _thoughtController,
                 maxLines: 3,
-                textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   hintText: 'O que aconteceu? Onde você estava? Quem estava com você?',
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 16),
 
+              const SizedBox(height: 16),
+              const Text('O Pensamento', style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _thoughtAltController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'O que passou pela sua cabeça? (Pensamento Automático)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 16),
               const Text('Emoção', style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               TextField(
                 controller: _emotionController,
-                textInputAction: TextInputAction.done,
                 decoration: const InputDecoration(
-                  hintText: 'Ex: Ansiedade',
+                  hintText: 'Ex: ansiedade, medo, raiva',
                   border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 16),
 
+              const SizedBox(height: 16),
+              const Text('O que você fez? (comportamento)', style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _behaviorController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Ex: evitei, conversei, respirei fundo',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+
+              const SizedBox(height: 16),
               Text(
                 'Intensidade: ${_intensity.round()}/10',
                 style: const TextStyle(fontWeight: FontWeight.w600),
@@ -92,7 +121,6 @@ class _NewRecordPageState extends State<NewRecordPage> {
               ),
 
               const SizedBox(height: 24),
-
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
