@@ -21,6 +21,42 @@ class _HomePageState extends State<HomePage> {
     _loadRecords();
   }
 
+  Future<bool> _confirmDelete() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir registro'),
+        content: const Text('Quer mesmo excluir este registro?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
+  }
+
+  Future<void> _deleteRecord(ThoughtRecord r) async {
+    await _db.deleteRecordById(r.id);
+
+    // Atualiza a lista sem depender só do reload
+    setState(() {
+      _records.removeWhere((x) => x.id == r.id);
+    });
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Registro excluído.')),
+    );
+  }
+
   Future<void> _loadRecords() async {
     try {
       final data = await _db.getAllRecords();
@@ -108,15 +144,56 @@ class _HomePageState extends State<HomePage> {
       itemBuilder: (context, index) {
         final r = _records[index];
 
-        return Card(
-          child: ListTile(
-            title: Text(r.emotion),
-            subtitle: Text(
-              r.thought,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+        return Dismissible(
+          key: ValueKey(r.id),
+          direction: DismissDirection.endToStart,
+          confirmDismiss: (_) => _confirmDelete(),
+          onDismissed: (_) => _deleteRecord(r),
+          background: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            alignment: Alignment.centerRight,
+            decoration: BoxDecoration(
+              color: Colors.red.shade400,
+              borderRadius: BorderRadius.circular(12),
             ),
-            trailing: Text('${r.intensity}/10'),
+            child: const Icon(Icons.delete, color: Colors.white),
+          ),
+          child: Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              title: Text(
+                r.emotion,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                r.thought,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${r.intensity}/10',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Excluir registro',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () async {
+                      final ok = await _confirmDelete();
+                      if (ok) {
+                        await _deleteRecord(r);
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },

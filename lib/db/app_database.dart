@@ -19,6 +19,7 @@ class Records extends Table {
 }
 
 @DriftDatabase(tables: [Records])
+
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
@@ -45,6 +46,10 @@ class AppDatabase extends _$AppDatabase {
         createdAt: createdAt,
       ),
     );
+  }
+
+  Future<int> deleteRecordById(int id) {
+    return (delete(records)..where((t) => t.id.equals(id))).go();
   }
 }
 
