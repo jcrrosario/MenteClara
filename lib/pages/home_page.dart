@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'new_record_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -16,8 +17,21 @@ class HomePage extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // depois vamos abrir a tela de cadastro
+        onPressed: () async {
+          // tela de novo registro
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NewRecordPage()),
+          );
+
+          if (result != null) {
+            // Por enquanto só mostra um feedback.
+            // No próximo passo a gente vai exibir numa lista na Home.
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Registro salvo.')),
+            );
+          }
+
         },
         child: const Icon(Icons.add),
       ),
