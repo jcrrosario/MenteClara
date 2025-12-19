@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/record.dart';
+import '../db/app_database.dart';
 import 'new_record_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -10,7 +10,40 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<Record> _records = [];
+  final AppDatabase _db = AppDatabase();
+
+  List<ThoughtRecord> _records = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecords();
+  }
+
+  Future<void> _loadRecords() async {
+    try {
+      final data = await _db.getAllRecords();
+      if (!mounted) return;
+
+      setState(() {
+        _records = data;
+      });
+    } catch (e) {
+      debugPrint('Erro ao carregar registros: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar registros: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
 
   Future<void> _openNewRecord() async {
     final result = await Navigator.push(
@@ -20,17 +53,23 @@ class _HomePageState extends State<HomePage> {
 
     if (result == null) return;
 
-    final record = Record(
-      thought: result['thought'] as String,
-      emotion: result['emotion'] as String,
-      intensity: result['intensity'] as int,
-      createdAt: DateTime.parse(result['createdAt'] as String),
+    final thought = result['thought'] as String;
+    final emotion = result['emotion'] as String;
+    final intensity = result['intensity'] as int;
+    final createdAt = DateTime.parse(result['createdAt'] as String);
+
+    await _db.insertRecord(
+      thought: thought,
+      emotion: emotion,
+      intensity: intensity,
+      createdAt: createdAt,
     );
 
-    setState(() {
-      _records.insert(0, record);
-    });
+    // Recarrega a lista do banco
+    setState(() => _loading = true);
+    await _loadRecords();
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Registro salvo.')),
     );
@@ -42,7 +81,9 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Mente Clara'),
       ),
-      body: _records.isEmpty ? _emptyState() : _list(),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : (_records.isEmpty ? _emptyState() : _list()),
       floatingActionButton: FloatingActionButton(
         onPressed: _openNewRecord,
         child: const Icon(Icons.add),
@@ -80,5 +121,11 @@ class _HomePageState extends State<HomePage> {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _db.close();
+    super.dispose();
   }
 }
