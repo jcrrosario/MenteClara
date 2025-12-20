@@ -75,9 +75,13 @@ class _NewRecordPageState extends State<NewRecordPage> {
       'id': widget.record?.id,
       'isEdit': widget.record != null,
       'thought': thought,
-      'thoughtAlt': _thoughtAltController.text.trim().isEmpty ? null : _thoughtAltController.text.trim(),
+      'thoughtAlt': _thoughtAltController.text.trim().isEmpty
+          ? null
+          : _thoughtAltController.text.trim(),
       'emotion': emotion,
-      'behavior': _behaviorController.text.trim().isEmpty ? null : _behaviorController.text.trim(),
+      'behavior': _behaviorController.text.trim().isEmpty
+          ? null
+          : _behaviorController.text.trim(),
       'intensity': _intensity.round(),
       'createdAt': (widget.record?.createdAt ?? DateTime.now()).toIso8601String(),
     });
@@ -85,7 +89,6 @@ class _NewRecordPageState extends State<NewRecordPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final isEdit = widget.record != null;
 
     return Scaffold(
@@ -96,161 +99,173 @@ class _NewRecordPageState extends State<NewRecordPage> {
         elevation: 0,
         title: Text(isEdit ? 'Editar registro' : 'Novo registro'),
       ),
-      body: SafeArea(
+
+      // ✅ Coloca o botão em bottomNavigationBar.
+      // O Scaffold já empurra isso acima do teclado quando resizeToAvoidBottomInset=true.
+      bottomNavigationBar: SafeArea(
+        top: false,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView(
-                  children: [
-                    _sectionCard(
-                      title: 'Situação',
-                      subtitle: 'O que aconteceu, onde, com quem.',
-                      icon: Icons.place_outlined,
-                      child: TextField(
-                        controller: _thoughtController,
-                        maxLines: 4,
-                        decoration: const InputDecoration(
-                          hintText: 'Descreva a situação com clareza',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _sectionCard(
-                      title: 'Pensamento automático',
-                      subtitle: 'O que passou pela sua cabeça.',
-                      icon: Icons.psychology_alt_outlined,
-                      child: TextField(
-                        controller: _thoughtAltController,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          hintText: 'Ex: "Vou falhar", "Não sou bom o suficiente"...',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _sectionCard(
-                      title: 'Emoção',
-                      subtitle: 'Escolha uma sugestão ou escreva.',
-                      icon: Icons.sentiment_satisfied_alt,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _emotionSuggestions.map((e) {
-                              final selected = _emotionController.text.trim().toLowerCase() == e.toLowerCase();
-                              return ChoiceChip(
-                                label: Text(e),
-                                selected: selected,
-                                selectedColor: _teal2.withOpacity(.18),
-                                onSelected: (_) => setState(() => _emotionController.text = e),
-                                labelStyle: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: selected ? _teal2 : Colors.black87,
-                                ),
-                                side: BorderSide(color: _teal2.withOpacity(.25)),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 10),
-                          TextField(
-                            controller: _emotionController,
-                            decoration: const InputDecoration(
-                              hintText: 'Ou escreva aqui, ex: ansiedade, medo, raiva',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _sectionCard(
-                      title: 'O que você fez',
-                      subtitle: 'Comportamento ou reação.',
-                      icon: Icons.directions_run_outlined,
-                      child: TextField(
-                        controller: _behaviorController,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          hintText: 'Ex: evitei, conversei, respirei fundo',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _sectionCard(
-                      title: 'Intensidade',
-                      subtitle: 'Quanto isso pegou em você agora.',
-                      icon: Icons.local_fire_department_outlined,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                '${_intensity.round()}/10',
-                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(99),
-                                  child: LinearProgressIndicator(
-                                    value: _intensity / 10.0,
-                                    minHeight: 10,
-                                    backgroundColor: Colors.black.withOpacity(.06),
-                                    valueColor: const AlwaysStoppedAnimation<Color>(_teal2),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          SliderTheme(
-                            data: SliderTheme.of(context).copyWith(
-                              activeTrackColor: _teal2,
-                              inactiveTrackColor: _teal2.withOpacity(.20),
-                              thumbColor: _teal,
-                              overlayColor: _teal.withOpacity(.18),
-                            ),
-                            child: Slider(
-                              value: _intensity,
-                              min: 0,
-                              max: 10,
-                              divisions: 10,
-                              label: _intensity.round().toString(),
-                              onChanged: (v) => setState(() => _intensity = v),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                  ],
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _teal,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _teal,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  onPressed: _save,
-                  icon: const Icon(Icons.save),
-                  label: Text(isEdit ? 'Salvar alterações' : 'Salvar registro'),
-                ),
-              ),
-            ],
+              onPressed: _save,
+              icon: const Icon(Icons.save),
+              label: Text(isEdit ? 'Salvar alterações' : 'Salvar registro'),
+            ),
           ),
+        ),
+      ),
+
+      // ✅ Body é um ListView, então nunca estoura quando o teclado sobe.
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          children: [
+            _sectionCard(
+              title: 'Situação',
+              subtitle: 'O que aconteceu, onde, com quem.',
+              icon: Icons.place_outlined,
+              child: TextField(
+                controller: _thoughtController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText: 'Descreva a situação com clareza',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _sectionCard(
+              title: 'Pensamento automático',
+              subtitle: 'O que passou pela sua cabeça.',
+              icon: Icons.psychology_alt_outlined,
+              child: TextField(
+                controller: _thoughtAltController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Ex: "Vou falhar", "Não sou bom o suficiente"...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _sectionCard(
+              title: 'Emoção',
+              subtitle: 'Escolha uma sugestão ou escreva.',
+              icon: Icons.sentiment_satisfied_alt,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _emotionSuggestions.map((e) {
+                      final selected =
+                          _emotionController.text.trim().toLowerCase() ==
+                              e.toLowerCase();
+
+                      return ChoiceChip(
+                        label: Text(e),
+                        selected: selected,
+                        selectedColor: _teal2.withOpacity(.18),
+                        onSelected: (_) =>
+                            setState(() => _emotionController.text = e),
+                        labelStyle: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: selected ? _teal2 : Colors.black87,
+                        ),
+                        side: BorderSide(color: _teal2.withOpacity(.25)),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _emotionController,
+                    decoration: const InputDecoration(
+                      hintText: 'Ou escreva aqui, ex: ansiedade, medo, raiva',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            _sectionCard(
+              title: 'O que você fez',
+              subtitle: 'Comportamento ou reação.',
+              icon: Icons.directions_run_outlined,
+              child: TextField(
+                controller: _behaviorController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Ex: evitei, conversei, respirei fundo',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _sectionCard(
+              title: 'Intensidade',
+              subtitle: 'Quanto isso pegou em você agora.',
+              icon: Icons.local_fire_department_outlined,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '${_intensity.round()}/10',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(99),
+                          child: LinearProgressIndicator(
+                            value: _intensity / 10.0,
+                            minHeight: 10,
+                            backgroundColor: Colors.black.withOpacity(.06),
+                            valueColor:
+                            const AlwaysStoppedAnimation<Color>(_teal2),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: _teal2,
+                      inactiveTrackColor: _teal2.withOpacity(.20),
+                      thumbColor: _teal,
+                      overlayColor: _teal.withOpacity(.18),
+                    ),
+                    child: Slider(
+                      value: _intensity,
+                      min: 0,
+                      max: 10,
+                      divisions: 10,
+                      label: _intensity.round().toString(),
+                      onChanged: (v) => setState(() => _intensity = v),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
         ),
       ),
     );
@@ -282,9 +297,16 @@ class _NewRecordPageState extends State<NewRecordPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+                      Text(title,
+                          style: const TextStyle(fontWeight: FontWeight.w900)),
                       const SizedBox(height: 2),
-                      Text(subtitle, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          color: Colors.black54,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
