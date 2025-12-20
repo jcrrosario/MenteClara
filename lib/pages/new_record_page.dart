@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import '../db/app_database.dart';
 
 class NewRecordPage extends StatefulWidget {
-  const NewRecordPage({super.key});
+  final ThoughtRecord? record;
 
+  const NewRecordPage({
+    super.key,
+    this.record,
+  });
   @override
   State<NewRecordPage> createState() => _NewRecordPageState();
 }
@@ -14,6 +19,21 @@ class _NewRecordPageState extends State<NewRecordPage> {
   final _behaviorController = TextEditingController();
 
   double _intensity = 5;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final r = widget.record;
+    if (r != null) {
+      _thoughtController.text = r.thought;
+      _thoughtAltController.text = (r.thoughtAlt ?? '');
+      _emotionController.text = r.emotion;
+      _behaviorController.text = (r.behavior ?? '');
+      _intensity = r.intensity.toDouble();
+    }
+  }
+
 
   @override
   void dispose() {
@@ -36,12 +56,19 @@ class _NewRecordPageState extends State<NewRecordPage> {
     }
 
     Navigator.pop(context, {
+      'id': widget.record?.id,
+      'isEdit': widget.record != null,
+
       'thought': thought,
-      'thoughtAlt': _thoughtAltController.text.trim(),
+      'thoughtAlt': _thoughtAltController.text.trim().isEmpty
+          ? null
+          : _thoughtAltController.text.trim(),
       'emotion': emotion,
-      'behavior': _behaviorController.text.trim(),
+      'behavior': _behaviorController.text.trim().isEmpty
+          ? null
+          : _behaviorController.text.trim(),
       'intensity': _intensity.round(),
-      'createdAt': DateTime.now().toIso8601String(),
+      'createdAt': (widget.record?.createdAt ?? DateTime.now()).toIso8601String(),
     });
   }
 
@@ -52,7 +79,7 @@ class _NewRecordPageState extends State<NewRecordPage> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Registro pensamento diário'),
+        title: Text(widget.record == null ? 'Novo registro' : 'Editar registro'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(

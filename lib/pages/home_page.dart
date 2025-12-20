@@ -168,13 +168,17 @@ class _HomePageState extends State<HomePage> {
             ),
 
             child: ListTile(
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                final changed = await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => RecordDetailPage(record: r),
                   ),
                 );
+                if (changed == true) {
+                  setState(() => _loading = true);
+                  await _loadRecords();
+                }
               },
               title: Text(
                 r.emotion,

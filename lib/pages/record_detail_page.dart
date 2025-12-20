@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../db/app_database.dart';
+import 'new_record_page.dart';
 
-class RecordDetailPage extends StatelessWidget {
+class RecordDetailPage extends StatefulWidget {
   final ThoughtRecord record;
 
   const RecordDetailPage({
@@ -9,6 +10,12 @@ class RecordDetailPage extends StatelessWidget {
     required this.record,
   });
 
+  @override
+  State<RecordDetailPage> createState() => _RecordDetailPageState();
+}
+
+class _RecordDetailPageState extends State<RecordDetailPage> {
+  final AppDatabase _db = AppDatabase();
   String _formatDate(DateTime dt) {
     String two(int v) => v.toString().padLeft(2, '0');
     return '${two(dt.day)}/${two(dt.month)}/${dt.year}  ${two(dt.hour)}:${two(dt.minute)}';
@@ -16,11 +23,43 @@ class RecordDetailPage extends StatelessWidget {
 
   bool _hasText(String? v) => v != null && v.trim().isNotEmpty;
 
+
+  Future<void> _onEditPressed() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NewRecordPage(record: widget.record),
+      ),
+    );
+
+    if (result == null) return;
+
+    await _db.updateRecordById(
+      id: widget.record.id,
+      thought: result['thought'] as String,
+      thoughtAlt: result['thoughtAlt'] as String?,
+      emotion: result['emotion'] as String,
+      behavior: result['behavior'] as String?,
+      intensity: result['intensity'] as int,
+      createdAt: widget.record.createdAt,
+    );
+
+    if (!mounted) return;
+    Navigator.pop(context, true);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Detalhe do registro'),
+        actions: [
+          IconButton(
+            tooltip: 'Editar registro',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: _onEditPressed,
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -28,7 +67,7 @@ class RecordDetailPage extends StatelessWidget {
           children: [
             _sectionTitle('Emoção'),
             const SizedBox(height: 8),
-            _cardText(record.emotion),
+            _cardText(widget.record.emotion),
 
             const SizedBox(height: 16),
 
@@ -37,13 +76,13 @@ class RecordDetailPage extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  '${record.intensity}/10',
+                  '${widget.record.intensity}/10',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: LinearProgressIndicator(
-                    value: record.intensity / 10.0,
+                    value: widget.record.intensity / 10.0,
                     minHeight: 10,
                     borderRadius: BorderRadius.circular(99),
                   ),
@@ -55,27 +94,27 @@ class RecordDetailPage extends StatelessWidget {
 
             _sectionTitle('Situação'),
             const SizedBox(height: 8),
-            _cardText(record.thought),
+            _cardText(widget.record.thought),
 
-            if (_hasText(record.thoughtAlt)) ...[
+            if (_hasText(widget.record.thoughtAlt)) ...[
               const SizedBox(height: 16),
               _sectionTitle('O Pensamento'),
               const SizedBox(height: 8),
-              _cardText(record.thoughtAlt!.trim()),
+              _cardText(widget.record.thoughtAlt!.trim()),
             ],
 
-            if (_hasText(record.behavior)) ...[
+            if (_hasText(widget.record.behavior)) ...[
               const SizedBox(height: 16),
               _sectionTitle('O que você fez?'),
               const SizedBox(height: 8),
-              _cardText(record.behavior!.trim()),
+              _cardText(widget.record.behavior!.trim()),
             ],
 
             const SizedBox(height: 16),
 
             _sectionTitle('Data'),
             const SizedBox(height: 8),
-            _cardText(_formatDate(record.createdAt)),
+            _cardText(_formatDate(widget.record.createdAt)),
           ],
         ),
       ),
@@ -106,4 +145,11 @@ class RecordDetailPage extends StatelessWidget {
       ),
     );
   }
+
+  @override
+  void dispose() {
+    _db.close();
+    super.dispose();
+  }
+
 }

@@ -68,6 +68,28 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+
+  Future<int> updateRecordById({
+    required int id,
+    required String thought,
+    String? thoughtAlt,
+    required String emotion,
+    String? behavior,
+    required int intensity,
+    required DateTime createdAt,
+  }) {
+    return (update(records)..where((t) => t.id.equals(id))).write(
+      RecordsCompanion(
+        thought: Value(thought),
+        thoughtAlt: Value(thoughtAlt),
+        emotion: Value(emotion),
+        behavior: Value(behavior),
+        intensity: Value(intensity),
+        createdAt: Value(createdAt),
+      ),
+    );
+  }
+
   Future<int> deleteRecordById(int id) {
     return (delete(records)..where((t) => t.id.equals(id))).go();
   }
