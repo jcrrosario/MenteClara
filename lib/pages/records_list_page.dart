@@ -1,0 +1,228 @@
+import 'package:flutter/material.dart';
+import '../db/app_database.dart';
+import 'new_record_page.dart';
+import 'record_detail_page.dart';
+
+class RecordsListPage extends StatefulWidget {
+  const RecordsListPage({super.key});
+
+  @override
+  State<RecordsListPage> createState() => _RecordsListPageState();
+}
+
+class _RecordsListPageState extends State<RecordsListPage> {
+  final AppDatabase _db = AppDatabase();
+
+  bool _loading = true;
+  List<ThoughtRecord> _records = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecords();
+  }
+
+  Future<void> _loadRecords() async {
+    try {
+      final data = await _db.getAllRecords();
+      if (!mounted) return;
+      setState(() {
+        _records = data;
+      });
+    } catch (e) {
+      debugPrint('Erro ao carregar registros: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar registros: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openNewRecord() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NewRecordPage()),
+    );
+
+    if (result == null) return;
+
+    final thought = result['thought'] as String;
+    final emotion = result['emotion'] as String;
+    final intensity = result['intensity'] as int;
+    final createdAt = DateTime.parse(result['createdAt'] as String);
+
+    await _db.insertRecord(
+      thought: thought,
+      thoughtAlt: result['thoughtAlt'],
+      emotion: emotion,
+      behavior: result['behavior'],
+      intensity: intensity,
+      createdAt: createdAt,
+    );
+
+    setState(() => _loading = true);
+    await _loadRecords();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Registro salvo.')),
+    );
+  }
+
+  Future<void> _deleteRecord(ThoughtRecord r) async {
+    await _db.deleteRecordById(r.id);
+
+    setState(() {
+      _records.removeWhere((x) => x.id == r.id);
+    });
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Registro excluído.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Registros'),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : (_records.isEmpty ? _emptyState() : _list()),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openNewRecord,
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _emptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.psychology_alt_outlined, size: 48),
+            const SizedBox(height: 12),
+            const Text(
+              'Nenhum registro ainda',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Crie seu primeiro registro para acompanhar seus pensamentos.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _openNewRecord,
+              icon: const Icon(Icons.add),
+              label: const Text('Novo registro'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _list() {
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() => _loading = true);
+        await _loadRecords();
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(12),
+        itemCount: _records.length,
+        itemBuilder: (context, index) {
+          final r = _records[index];
+
+          return Dismissible(
+            key: ValueKey(r.id),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade600,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.delete, color: Colors.white),
+            ),
+            confirmDismiss: (_) async {
+              return await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Excluir registro?'),
+                  content: const Text(
+                    'Isso remove o registro permanentemente.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Excluir'),
+                    ),
+                  ],
+                ),
+              ) ??
+                  false;
+            },
+            onDismissed: (_) => _deleteRecord(r),
+            child: Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                onTap: () async {
+                  final changed = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => RecordDetailPage(record: r),
+                    ),
+                  );
+
+                  if (changed == true) {
+                    setState(() => _loading = true);
+                    await _loadRecords();
+                  }
+                },
+                title: Text(
+                  r.thought,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  '${r.emotion} • Intensidade ${r.intensity}/10',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: const Icon(Icons.chevron_right),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _db.close();
+    super.dispose();
+  }
+}
