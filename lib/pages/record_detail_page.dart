@@ -57,7 +57,7 @@ class _RecordDetailPageState extends State<RecordDetailPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Detalhe do registro'),
+        title: const Text('Consulta de RPD'),
         actions: [
           IconButton(
             tooltip: 'Editar',

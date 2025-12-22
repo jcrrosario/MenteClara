@@ -143,8 +143,8 @@ class _HomePageState extends State<HomePage> {
                   Expanded(
                     child: _actionCard(
                       icon: Icons.edit_note,
-                      title: 'Novo Registro',
-                      subtitle: 'Anote pensamentos disfuncionais',
+                      title: 'Registro (RPD)',
+                      subtitle: 'Anote registros de pensamentos disfuncionais',
                       onTap: _openNewRecord,
                     ),
                   ),
@@ -173,7 +173,7 @@ class _HomePageState extends State<HomePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Últimos Registros',
+                    'Últimos Registros - RPD',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,

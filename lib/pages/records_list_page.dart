@@ -192,7 +192,7 @@ class _RecordsListPageState extends State<RecordsListPage> {
           const SizedBox(width: 4),
           const Expanded(
             child: Text(
-              'Registros',
+              'Lista de Registros RPD',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
             ),
           ),

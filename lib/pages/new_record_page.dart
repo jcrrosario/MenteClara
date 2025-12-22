@@ -97,7 +97,7 @@ class _NewRecordPageState extends State<NewRecordPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text(isEdit ? 'Editar registro' : 'Novo registro'),
+        title: Text(isEdit ? 'Edição' : 'Novo registro RPD'),
       ),
 
       // ✅ Coloca o botão em bottomNavigationBar.
