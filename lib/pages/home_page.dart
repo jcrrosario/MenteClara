@@ -3,6 +3,8 @@ import '../db/app_database.dart';
 import 'new_record_page.dart';
 import 'record_detail_page.dart';
 import 'records_list_page.dart';
+import 'daily_checkin_page.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -234,7 +236,15 @@ class _HomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                onPressed: _openNewRecord,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DailyCheckInPage(),
+                    ),
+                  );
+                },
+
                 child: const Text(
                   'Registrar',
                   style: TextStyle(fontWeight: FontWeight.w700),
