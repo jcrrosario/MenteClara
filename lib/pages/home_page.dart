@@ -10,6 +10,7 @@ import 'daily_checkin_page.dart';
 
 import '../data/record_repository.dart';
 import '../data/drift_record_repository.dart';
+import 'who5_intro_page.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -152,11 +153,12 @@ class _HomePageState extends State<HomePage> {
                     child: _actionCard(
                       icon: Icons.monitor_heart_outlined,
                       title: 'Autoavaliação',
-                      subtitle: 'Teste de ansiedade e estresse',
+                      subtitle: 'Teste de avaliação WHO-5',
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Autoavaliação em breve.'),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => Who5IntroPage(),
                           ),
                         );
                       },
