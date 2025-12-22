@@ -402,7 +402,7 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: const Color(0xFF0F172A),
+        color: const Color(0xFF0A2A66),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
