@@ -8,8 +8,8 @@ import 'record_detail_page.dart';
 import 'records_list_page.dart';
 import 'daily_checkin_page.dart';
 
-import '../data/repositories/record_repository.dart';
-import '../data/repositories/drift_record_repository.dart';
+import '../data/record_repository.dart';
+import '../data/drift_record_repository.dart';
 
 
 class HomePage extends StatefulWidget {
