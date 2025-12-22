@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+
 import '../db/app_database.dart';
+import '../models/record.dart';
+
 import 'new_record_page.dart';
 import 'record_detail_page.dart';
 import 'records_list_page.dart';
 import 'daily_checkin_page.dart';
+
+import '../data/repositories/record_repository.dart';
+import '../data/repositories/drift_record_repository.dart';
 
 
 class HomePage extends StatefulWidget {
