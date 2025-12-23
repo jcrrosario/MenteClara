@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../models/who5_question.dart';
 import 'who5_result_page.dart';
 
 class Who5TestPage extends StatefulWidget {
@@ -10,35 +9,33 @@ class Who5TestPage extends StatefulWidget {
 }
 
 class _Who5TestPageState extends State<Who5TestPage> {
-  final List<Who5Question> questions = [
-    Who5Question('Senti-me bem e de bom humor'),
-    Who5Question('Senti-me calmo e relaxado'),
-    Who5Question('Senti-me ativo e com energia'),
-    Who5Question('Acordei sentindo-me descansado'),
-    Who5Question('Meu dia a dia teve coisas que me interessaram'),
+  final List<String> questions = [
+    'Senti-me bem e de bom humor',
+    'Senti-me calmo e relaxado',
+    'Senti-me ativo e com energia',
+    'Acordei sentindo-me descansado',
+    'Meu dia a dia teve coisas que me interessaram',
   ];
 
   final Map<int, int> answers = {};
 
-  final List<String> scaleLabels = [
-    'Em nenhum momento',
-    'Alguns momentos',
-    'Menos da metade do tempo',
-    'Mais da metade do tempo',
-    'A maior parte do tempo',
-    'O tempo todo',
+  final List<String> scale = [
+    'Nunca',
+    'Raramente',
+    'Às vezes',
+    'Frequentemente',
+    'Quase sempre',
+    'Sempre',
   ];
 
-  void _finishTest() {
+  void _finish() {
     if (answers.length < questions.length) return;
-
-    int rawScore = answers.values.reduce((a, b) => a + b);
-    int finalScore = rawScore * 4;
+    final score = answers.values.reduce((a, b) => a + b) * 4;
 
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => Who5ResultPage(score: finalScore),
+        builder: (_) => Who5ResultPage(score: score),
       ),
     );
   }
@@ -46,54 +43,77 @@ class _Who5TestPageState extends State<Who5TestPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
-        title: const Text('WHO-5'),
+        title: const Text('Avaliação'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
       ),
       body: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         itemCount: questions.length + 1,
         itemBuilder: (context, index) {
           if (index == questions.length) {
             return Padding(
               padding: const EdgeInsets.only(top: 24),
               child: ElevatedButton(
-                onPressed: answers.length == questions.length ? _finishTest : null,
-                child: const Text('Ver resultado'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00B894),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                onPressed: answers.length == questions.length ? _finish : null,
+                child: const Text(
+                  'Ver resultado',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
               ),
             );
           }
 
-          return Card(
+          return Container(
             margin: const EdgeInsets.only(bottom: 16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    questions[index].text,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.black12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  questions[index],
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(height: 12),
-                  Column(
-                    children: List.generate(6, (value) {
-                      return RadioListTile<int>(
-                        title: Text(scaleLabels[value]),
-                        value: value,
-                        groupValue: answers[index],
-                        onChanged: (v) {
-                          setState(() {
-                            answers[index] = v!;
-                          });
-                        },
-                      );
-                    }),
-                  )
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: List.generate(6, (value) {
+                    final selected = answers[index] == value;
+                    return ChoiceChip(
+                      label: Text(scale[value]),
+                      selected: selected,
+                      selectedColor: const Color(0xFF00B894),
+                      labelStyle: TextStyle(
+                        color: selected ? Colors.white : Colors.black87,
+                      ),
+                      onSelected: (_) {
+                        setState(() {
+                          answers[index] = value;
+                        });
+                      },
+                    );
+                  }),
+                )
+              ],
             ),
           );
         },
