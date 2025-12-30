@@ -12,7 +12,6 @@ import '../data/record_repository.dart';
 import '../data/drift_record_repository.dart';
 import 'who5_intro_page.dart';
 
-
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -86,7 +85,6 @@ class _HomePageState extends State<HomePage> {
       context,
       MaterialPageRoute(builder: (_) => const RecordsListPage()),
     );
-    // Ao voltar, recarrega porque pode ter editado ou excluído lá dentro
     if (!mounted) return;
     await _loadRecent();
   }
@@ -144,7 +142,8 @@ class _HomePageState extends State<HomePage> {
                     child: _actionCard(
                       icon: Icons.edit_note,
                       title: 'Registro (RPD)',
-                      subtitle: 'Anote registros de pensamentos disfuncionais',
+                      subtitle:
+                      'Anote registros de pensamentos disfuncionais',
                       onTap: _openNewRecord,
                     ),
                   ),
@@ -252,7 +251,6 @@ class _HomePageState extends State<HomePage> {
                     ),
                   );
                 },
-
                 child: const Text(
                   'Registrar',
                   style: TextStyle(fontWeight: FontWeight.w700),
@@ -267,7 +265,6 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 14),
           Row(
-            mainAxisAlignment: MainAxisAlignment.start,
             children: const [
               _MoodDot('😟'),
               SizedBox(width: 10),
@@ -320,7 +317,8 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: const TextStyle(fontSize: 12, color: Colors.black54),
+              style:
+              const TextStyle(fontSize: 12, color: Colors.black54),
             ),
           ],
         ),
@@ -334,7 +332,8 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(14),
         onTap: _openNewRecord,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+          padding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: Colors.black12),
@@ -402,15 +401,16 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: const Color(0xFF0A2A66),
+        color: const Color(0xFF00B894), // VERDE DO APP
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor: Colors.white.withOpacity(0.12),
-            child: const Icon(Icons.announcement_outlined, color: Colors.white),
+            backgroundColor: Colors.white.withOpacity(0.18),
+            child:
+            const Icon(Icons.announcement_outlined, color: Colors.white),
           ),
           const SizedBox(width: 12),
           const Expanded(
@@ -427,7 +427,8 @@ class _HomePageState extends State<HomePage> {
                 SizedBox(height: 8),
                 Text(
                   'Tecnologia feita para o que você sente',
-                  style: TextStyle(color: Colors.white70, height: 1.3),
+                  style:
+                  TextStyle(color: Colors.white70, height: 1.3),
                 ),
               ],
             ),
