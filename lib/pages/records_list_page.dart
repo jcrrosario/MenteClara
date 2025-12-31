@@ -18,7 +18,23 @@ class _RecordsListPageState extends State<RecordsListPage> {
   final AppDatabase _db = AppDatabase();
 
   bool _loading = true;
+  List<ThoughtRecord> _allRecords = [];
   List<ThoughtRecord> _records = [];
+
+  // FILTROS
+  DateTime? _startDate;
+  DateTime? _endDate;
+  String? _emotion;
+  int? _minIntensity;
+  int? _maxIntensity;
+
+  final List<String> _emotions = [
+    'Tristeza',
+    'Ansiedade',
+    'Raiva',
+    'Medo',
+    'Alegria',
+  ];
 
   @override
   void initState() {
@@ -31,50 +47,185 @@ class _RecordsListPageState extends State<RecordsListPage> {
     try {
       final data = await _db.getAllRecords();
       if (!mounted) return;
-      setState(() => _records = data);
+      setState(() {
+        _allRecords = data;
+        _applyFilters();
+      });
     } catch (e) {
-      debugPrint('Erro ao carregar registros: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar registros: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao carregar registros: $e')),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _openNewRecord() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const NewRecordPage()),
+  void _applyFilters() {
+    _records = _allRecords.where((r) {
+      if (_emotion != null && r.emotion != _emotion) return false;
+      if (_minIntensity != null && r.intensity < _minIntensity!) return false;
+      if (_maxIntensity != null && r.intensity > _maxIntensity!) return false;
+      if (_startDate != null && r.createdAt.isBefore(_startDate!)) return false;
+      if (_endDate != null && r.createdAt.isAfter(_endDate!)) return false;
+      return true;
+    }).toList();
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _startDate = null;
+      _endDate = null;
+      _emotion = null;
+      _minIntensity = null;
+      _maxIntensity = null;
+      _records = List.from(_allRecords);
+    });
+  }
+
+  void _openFilters() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        int min = _minIntensity ?? 0;
+        int max = _maxIntensity ?? 10;
+
+        return StatefulBuilder(
+          builder: (context, setModal) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Filtros',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 16),
+
+                  DropdownButtonFormField<String>(
+                    value: _emotion,
+                    decoration: const InputDecoration(
+                      labelText: 'Emoção',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: _emotions
+                        .map((e) =>
+                        DropdownMenuItem(value: e, child: Text(e)))
+                        .toList(),
+                    onChanged: (v) => setModal(() => _emotion = v),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Text('Intensidade: $min – $max'),
+                  RangeSlider(
+                    values: RangeValues(min.toDouble(), max.toDouble()),
+                    min: 0,
+                    max: 10,
+                    divisions: 10,
+                    activeColor: _teal,
+                    onChanged: (v) {
+                      setModal(() {
+                        min = v.start.round();
+                        max = v.end.round();
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final d = await showDatePicker(
+                              context: context,
+                              initialDate: _startDate ?? DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime.now(),
+                            );
+                            if (d != null) {
+                              setModal(() => _startDate = d);
+                            }
+                          },
+                          child: Text(
+                            _startDate == null
+                                ? 'Data inicial'
+                                : 'De ${_startDate!.day}/${_startDate!.month}/${_startDate!.year}',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final d = await showDatePicker(
+                              context: context,
+                              initialDate: _endDate ?? DateTime.now(),
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime.now(),
+                            );
+                            if (d != null) {
+                              setModal(() => _endDate = d);
+                            }
+                          },
+                          child: Text(
+                            _endDate == null
+                                ? 'Data final'
+                                : 'Até ${_endDate!.day}/${_endDate!.month}/${_endDate!.year}',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            _clearFilters();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Limpar'),
+                        ),
+                      ),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: _teal),
+                          onPressed: () {
+                            setState(() {
+                              _minIntensity = min;
+                              _maxIntensity = max;
+                              _applyFilters();
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Aplicar'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
-
-    if (result == null) return;
-
-    try {
-      await _db.insertRecord(
-        thought: result['thought'] as String,
-        thoughtAlt: result['thoughtAlt'] as String?,
-        emotion: result['emotion'] as String,
-        behavior: result['behavior'] as String?,
-        intensity: result['intensity'] as int,
-        createdAt: DateTime.parse(result['createdAt'] as String),
-      );
-
-      await _loadRecords();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro salvo.')),
-      );
-    } catch (e) {
-      debugPrint('Erro ao salvar registro: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao salvar: $e')),
-      );
-    }
   }
 
   Future<void> _editRecord(ThoughtRecord r) async {
@@ -85,35 +236,17 @@ class _RecordsListPageState extends State<RecordsListPage> {
 
     if (result == null) return;
 
-    final isEdit = result['isEdit'] == true;
-    final id = result['id'];
+    await _db.updateRecordById(
+      id: r.id,
+      thought: result['thought'],
+      thoughtAlt: result['thoughtAlt'],
+      emotion: result['emotion'],
+      behavior: result['behavior'],
+      intensity: result['intensity'],
+      createdAt: r.createdAt,
+    );
 
-    if (!isEdit || id == null) return;
-
-    try {
-      await _db.updateRecordById(
-        id: id as int,
-        thought: result['thought'] as String,
-        thoughtAlt: result['thoughtAlt'] as String?,
-        emotion: result['emotion'] as String,
-        behavior: result['behavior'] as String?,
-        intensity: result['intensity'] as int,
-        createdAt: r.createdAt,
-      );
-
-      await _loadRecords();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro atualizado.')),
-      );
-    } catch (e) {
-      debugPrint('Erro ao atualizar registro: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao atualizar: $e')),
-      );
-    }
+    await _loadRecords();
   }
 
   Future<void> _deleteRecord(ThoughtRecord r) async {
@@ -128,7 +261,8 @@ class _RecordsListPageState extends State<RecordsListPage> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style:
+            ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Excluir'),
           ),
@@ -139,20 +273,8 @@ class _RecordsListPageState extends State<RecordsListPage> {
 
     if (!confirm) return;
 
-    try {
-      await _db.deleteRecordById(r.id);
-      if (!mounted) return;
-      setState(() => _records.removeWhere((x) => x.id == r.id));
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registro excluído.')),
-      );
-    } catch (e) {
-      debugPrint('Erro ao excluir registro: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao excluir: $e')),
-      );
-    }
+    await _db.deleteRecordById(r.id);
+    await _loadRecords();
   }
 
   @override
@@ -166,15 +288,12 @@ class _RecordsListPageState extends State<RecordsListPage> {
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
-                  : (_records.isEmpty ? _emptyState() : _list()),
+                  : (_records.isEmpty
+                  ? const Center(child: Text('Nenhum registro encontrado'))
+                  : _list()),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: _teal,
-        onPressed: _openNewRecord,
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -185,11 +304,9 @@ class _RecordsListPageState extends State<RecordsListPage> {
       child: Row(
         children: [
           IconButton(
-            tooltip: 'Voltar',
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back),
           ),
-          const SizedBox(width: 4),
           const Expanded(
             child: Text(
               'Lista de Registros RPD',
@@ -197,170 +314,118 @@ class _RecordsListPageState extends State<RecordsListPage> {
             ),
           ),
           IconButton(
-            tooltip: 'Novo registro',
-            onPressed: _openNewRecord,
-            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Filtrar',
+            icon: const Icon(Icons.filter_list),
+            onPressed: _openFilters,
           ),
         ],
       ),
     );
   }
 
-  Widget _emptyState() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: _teal2.withOpacity(.12),
-                child: const Icon(Icons.psychology_alt_outlined, color: _teal2),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Nenhum registro ainda',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Crie seu primeiro registro para acompanhar seus pensamentos.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54),
-              ),
-              const SizedBox(height: 14),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _teal,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: _openNewRecord,
-                child: const Text('Novo registro'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _list() {
-    return RefreshIndicator(
-      color: _teal2,
-      onRefresh: _loadRecords,
-      child: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-        itemCount: _records.length,
-        itemBuilder: (_, i) {
-          final r = _records[i];
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+      itemCount: _records.length,
+      itemBuilder: (_, i) {
+        final r = _records[i];
 
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () async {
-                  final changed = await Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => RecordDetailPage(record: r)),
-                  );
-
-                  if (changed == true) {
-                    await _loadRecords();
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Registro atualizado.')),
-                    );
-                  }
-                },
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: _teal2.withOpacity(.12),
-                        child: const Icon(Icons.notes_outlined, color: _teal2),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              r.thought,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                _chip(
-                                  icon: Icons.sentiment_satisfied_alt,
-                                  text: r.emotion,
-                                  color: _teal2,
-                                ),
-                                _chip(
-                                  icon: Icons.local_fire_department_outlined,
-                                  text: '${r.intensity}/10',
-                                  color: _teal,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      SizedBox(
-                        width: 44,
-                        child: Column(
-                          children: [
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-                              padding: EdgeInsets.zero,
-                              tooltip: 'Editar',
-                              icon: const Icon(Icons.edit_outlined, color: _teal2),
-                              onPressed: () => _editRecord(r),
-                            ),
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-                              padding: EdgeInsets.zero,
-                              tooltip: 'Excluir',
-                              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                              onPressed: () => _deleteRecord(r),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Card(
+            elevation: 0,
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () async {
+                final changed = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RecordDetailPage(record: r),
                   ),
+                );
+                if (changed == true) {
+                  await _loadRecords();
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: _teal2.withOpacity(.12),
+                      child:
+                      const Icon(Icons.notes_outlined, color: _teal2),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r.thought,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                            const TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              _chip(
+                                icon:
+                                Icons.sentiment_satisfied_alt_outlined,
+                                text: r.emotion,
+                                color: _teal2,
+                              ),
+                              _chip(
+                                icon:
+                                Icons.local_fire_department_outlined,
+                                text: '${r.intensity}/10',
+                                color: _teal,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Column(
+                      children: [
+                        IconButton(
+                          tooltip: 'Editar',
+                          icon: const Icon(Icons.edit_outlined,
+                              color: _teal2),
+                          onPressed: () => _editRecord(r),
+                        ),
+                        IconButton(
+                          tooltip: 'Excluir',
+                          icon: const Icon(Icons.delete_outline,
+                              color: Colors.redAccent),
+                          onPressed: () => _deleteRecord(r),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _chip({required IconData icon, required String text, required Color color}) {
+  Widget _chip({
+    required IconData icon,
+    required String text,
+    required Color color,
+  }) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 0),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
@@ -372,12 +437,9 @@ class _RecordsListPageState extends State<RecordsListPage> {
         children: [
           Icon(icon, size: 16, color: color),
           const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              text,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: color, fontWeight: FontWeight.w800),
-            ),
+          Text(
+            text,
+            style: TextStyle(color: color, fontWeight: FontWeight.w800),
           ),
         ],
       ),
