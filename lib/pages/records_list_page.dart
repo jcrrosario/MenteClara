@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../db/app_database.dart';
 import 'new_record_page.dart';
-import 'record_detail_page.dart';
 
 class RecordsListPage extends StatefulWidget {
   const RecordsListPage({super.key});
@@ -22,86 +21,190 @@ class _RecordsListPageState extends State<RecordsListPage> {
 
   final AppDatabase _db = AppDatabase();
   final DateFormat _df = DateFormat('dd/MM/yyyy HH:mm');
-  final DateFormat _dfDate = DateFormat('dd/MM/yyyy');
 
   bool _loading = true;
-  List<ThoughtRecord> _allRecords = [];
-  List<ThoughtRecord> _records = [];
 
-  DateTime? _startDate;
-  DateTime? _endDate;
-  String? _emotion;
-  int? _minIntensity;
-  int? _maxIntensity;
+  List<ThoughtRecord> _all = [];
+  List<ThoughtRecord> _filtered = [];
+
+  DateTime? _start;
+  DateTime? _end;
 
   @override
   void initState() {
     super.initState();
-    _loadRecords();
+    _load();
   }
 
-  Future<void> _loadRecords() async {
+  Future<void> _load() async {
     setState(() => _loading = true);
-    _allRecords = await _db.getAllRecords();
-    _applyFilters();
-    if (mounted) setState(() => _loading = false);
+    final data = await _db.getAllRecords();
+    if (!mounted) return;
+    setState(() {
+      _all = data;
+      _applyFilters();
+      _loading = false;
+    });
   }
 
   void _applyFilters() {
-    var data = [..._allRecords];
-
-    if (_startDate != null) {
-      data = data.where((r) =>
-      !r.createdAt.isBefore(_startDate!)
-      ).toList();
-    }
-
-    if (_endDate != null) {
-      data = data.where((r) =>
-      !r.createdAt.isAfter(_endDate!.add(const Duration(days: 1)))
-      ).toList();
-    }
-
-    if (_emotion != null) {
-      data = data.where((r) => r.emotion == _emotion).toList();
-    }
-
-    if (_minIntensity != null) {
-      data = data.where((r) => r.intensity >= _minIntensity!).toList();
-    }
-
-    if (_maxIntensity != null) {
-      data = data.where((r) => r.intensity <= _maxIntensity!).toList();
-    }
-
-    setState(() => _records = data);
+    _filtered = _all.where((r) {
+      if (_start != null && r.createdAt.isBefore(_start!)) return false;
+      if (_end != null && r.createdAt.isAfter(_end!)) return false;
+      return true;
+    }).toList();
   }
 
-  // ================= PDF =================
+  Future<void> _openFilters() async {
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Filtro por período',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 16),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final d = await showDatePicker(
+                          context: context,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                          initialDate: _start ?? DateTime.now(),
+                        );
+                        if (d != null) setState(() => _start = d);
+                      },
+                      child: Text(
+                        _start == null
+                            ? 'Data inicial'
+                            : DateFormat('dd/MM/yyyy').format(_start!),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final d = await showDatePicker(
+                          context: context,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                          initialDate: _end ?? DateTime.now(),
+                        );
+                        if (d != null) {
+                          setState(() => _end =
+                              d.add(const Duration(hours: 23, minutes: 59)));
+                        }
+                      },
+                      child: Text(
+                        _end == null
+                            ? 'Data final'
+                            : DateFormat('dd/MM/yyyy').format(_end!),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () {
+                        setState(() {
+                          _start = null;
+                          _end = null;
+                          _applyFilters();
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Limpar'),
+                    ),
+                  ),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: _teal),
+                      onPressed: () {
+                        setState(_applyFilters);
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Aplicar'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _generatePdf() async {
     final pdf = pw.Document();
 
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(32),
         build: (_) => [
           pw.Text(
-            'Mente Clara',
+            'Relatório de Registros RPD',
             style: pw.TextStyle(
-              fontSize: 26,
+              fontSize: 22,
               fontWeight: pw.FontWeight.bold,
-              color: PdfColors.teal700,
             ),
           ),
           pw.SizedBox(height: 6),
           pw.Text(
-            'Relatório de Registros',
-            style: pw.TextStyle(color: PdfColors.grey700),
+            'Gerado em ${DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now())}',
+            style: const pw.TextStyle(fontSize: 10),
           ),
           pw.Divider(),
-          ..._records.map(_pdfCard),
+          pw.SizedBox(height: 16),
+
+          ..._filtered.map(
+                (r) => pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: 16),
+              padding: const pw.EdgeInsets.all(14),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.grey300),
+                borderRadius: pw.BorderRadius.circular(12),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(
+                    _df.format(r.createdAt),
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      color: PdfColors.grey600,
+                    ),
+                  ),
+                  pw.SizedBox(height: 8),
+
+                  _pdfField('Situação', r.thought),
+                  _pdfField('Pensamento', r.thoughtAlt ?? '-'),
+                  _pdfField('Emoção', r.emotion),
+                  _pdfField('O que você fez', r.behavior ?? '-'),
+                  _pdfField('Intensidade', '${r.intensity}/10'),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -109,238 +212,83 @@ class _RecordsListPageState extends State<RecordsListPage> {
     await Printing.layoutPdf(onLayout: (_) => pdf.save());
   }
 
-  pw.Widget _pdfCard(ThoughtRecord r) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 14),
-      padding: const pw.EdgeInsets.all(12),
-      decoration: pw.BoxDecoration(
-        borderRadius: pw.BorderRadius.circular(10),
-        border: pw.Border.all(color: PdfColors.grey300),
-      ),
+  pw.Widget _pdfField(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 6),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(_df.format(r.createdAt),
-              style: pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
-          pw.SizedBox(height: 6),
-          pw.Text(r.thought,
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 8),
-          pw.Text('${r.emotion} • ${r.intensity}/10'),
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.Text(value, style: const pw.TextStyle(fontSize: 11)),
         ],
       ),
     );
   }
-
-  // ================= UI =================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _header(),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : (_records.isEmpty ? _empty() : _list()),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _header() {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back),
-          ),
-          const Expanded(
-            child: Text(
-              'Registros RPD',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-            ),
-          ),
+      appBar: AppBar(
+        title: const Text('Registros RPD'),
+        actions: [
           IconButton(
             icon: const Icon(Icons.filter_alt_outlined),
-            onPressed: _openFilter,
+            onPressed: _openFilters,
           ),
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf),
-            onPressed: _records.isEmpty ? null : _generatePdf,
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: _filtered.isEmpty ? null : _generatePdf,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _empty() {
-    return const Center(child: Text('Nenhum registro encontrado'));
-  }
-
-  Widget _list() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _records.length,
-      itemBuilder: (_, i) {
-        final r = _records[i];
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _filtered.length,
+        itemBuilder: (_, i) {
+          final r = _filtered[i];
+          return Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: ListTile(
+              title: Text(r.thought),
+              subtitle: Text('${r.emotion} • ${r.intensity}/10'),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          r.thought,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w800,
-                          ),
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: _teal2),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => NewRecordPage(record: r),
                         ),
-                        const SizedBox(height: 6),
-                        Text('${r.emotion} • ${r.intensity}/10'),
-                      ],
-                    ),
+                      );
+                      _load();
+                    },
                   ),
-                  Column(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, color: _teal2),
-                        onPressed: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => NewRecordPage(record: r),
-                            ),
-                          );
-                          _loadRecords();
-                        },
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                        onPressed: () async {
-                          await _db.deleteRecordById(r.id);
-                          _loadRecords();
-                        },
-                      ),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () async {
+                      await _db.deleteRecordById(r.id);
+                      _load();
+                    },
                   ),
                 ],
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ================= FILTER =================
-
-  void _openFilter() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _filterSheet(),
-    );
-  }
-
-  Widget _filterSheet() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Filtros',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 12),
-
-          ListTile(
-            title: Text(_startDate == null
-                ? 'Data inicial'
-                : _dfDate.format(_startDate!)),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: () async {
-              final d = await showDatePicker(
-                context: context,
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now(),
-                initialDate: _startDate ?? DateTime.now(),
-              );
-              if (d != null) setState(() => _startDate = d);
-            },
-          ),
-
-          ListTile(
-            title: Text(_endDate == null
-                ? 'Data final'
-                : _dfDate.format(_endDate!)),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: () async {
-              final d = await showDatePicker(
-                context: context,
-                firstDate: DateTime(2020),
-                lastDate: DateTime.now(),
-                initialDate: _endDate ?? DateTime.now(),
-              );
-              if (d != null) setState(() => _endDate = d);
-            },
-          ),
-
-          DropdownButtonFormField<String>(
-            value: _emotion,
-            decoration: const InputDecoration(labelText: 'Emoção'),
-            items: ['Ansiedade', 'Tristeza', 'Raiva', 'Medo', 'Alegria']
-                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                .toList(),
-            onChanged: (v) => _emotion = v,
-          ),
-
-          const SizedBox(height: 16),
-
-          Row(
-            children: [
-              TextButton(
-                onPressed: () {
-                  _startDate = null;
-                  _endDate = null;
-                  _emotion = null;
-                  _minIntensity = null;
-                  _maxIntensity = null;
-                  _applyFilters();
-                  Navigator.pop(context);
-                },
-                child: const Text('Limpar'),
-              ),
-              const Spacer(),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: _teal),
-                onPressed: () {
-                  _applyFilters();
-                  Navigator.pop(context);
-                },
-                child: const Text('Aplicar'),
-              ),
-            ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
