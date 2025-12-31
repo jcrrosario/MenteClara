@@ -1,16 +1,13 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
-
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
 import '../db/app_database.dart';
 import 'new_record_page.dart';
 import 'record_detail_page.dart';
+
+// PDF
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class RecordsListPage extends StatefulWidget {
   const RecordsListPage({super.key});
@@ -31,6 +28,9 @@ class _RecordsListPageState extends State<RecordsListPage> {
   List<ThoughtRecord> _records = [];
   List<ThoughtRecord> _filtered = [];
 
+  // filtros
+  String? _emotionFilter;
+  int? _intensityFilter;
   DateTime? _startDate;
   DateTime? _endDate;
 
@@ -43,229 +43,341 @@ class _RecordsListPageState extends State<RecordsListPage> {
   Future<void> _loadRecords() async {
     setState(() => _loading = true);
     final data = await _db.getAllRecords();
+    if (!mounted) return;
     setState(() {
       _records = data;
-      _applyFilters();
+      _filtered = List.from(data);
       _loading = false;
     });
   }
 
+  // =========================
+  // FILTROS
+  // =========================
   void _applyFilters() {
-    _filtered = _records.where((r) {
-      if (_startDate != null && r.createdAt.isBefore(_startDate!)) return false;
-      if (_endDate != null && r.createdAt.isAfter(_endDate!)) return false;
-      return true;
-    }).toList();
-  }
-
-  Future<void> _pickDate({required bool start}) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
-    );
-
-    if (picked == null) return;
-
     setState(() {
-      if (start) {
-        _startDate = DateTime(picked.year, picked.month, picked.day, 0, 0);
-      } else {
-        _endDate = DateTime(picked.year, picked.month, picked.day, 23, 59);
-      }
-      _applyFilters();
+      _filtered = _records.where((r) {
+        final byEmotion =
+            _emotionFilter == null || r.emotion == _emotionFilter;
+        final byIntensity =
+            _intensityFilter == null || r.intensity == _intensityFilter;
+        final byStart =
+            _startDate == null || !r.createdAt.isBefore(_startDate!);
+        final byEnd =
+            _endDate == null || !r.createdAt.isAfter(_endDate!);
+
+        return byEmotion && byIntensity && byStart && byEnd;
+      }).toList();
     });
   }
 
-  Future<void> _generatePdf() async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageTheme: pw.PageTheme(
-          margin: const pw.EdgeInsets.all(32),
-          theme: pw.ThemeData.withFont(
-            base: pw.Font.helvetica(),
-            bold: pw.Font.helveticaBold(),
-          ),
-        ),
-        build: (_) => [
-          pw.Text(
-            'Relatório de Registros RPD',
-            style: pw.TextStyle(
-              fontSize: 24,
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.teal800,
-            ),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            'Gerado em ${_df.format(DateTime.now())}',
-            style: pw.TextStyle(color: PdfColors.grey600),
-          ),
-          pw.Divider(),
-          pw.SizedBox(height: 16),
-          ..._filtered.map(_pdfCard),
-        ],
+  void _openFilterModal() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-    );
-
-    await Printing.layoutPdf(onLayout: (_) async => pdf.save());
-  }
-
-  pw.Widget _pdfCard(ThoughtRecord r) {
-    return pw.Container(
-      margin: const pw.EdgeInsets.only(bottom: 16),
-      padding: const pw.EdgeInsets.all(16),
-      decoration: pw.BoxDecoration(
-        borderRadius: pw.BorderRadius.circular(12),
-        border: pw.Border.all(color: PdfColors.grey300),
-        color: PdfColors.white,
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            _df.format(r.createdAt),
-            style: pw.TextStyle(color: PdfColors.grey600, fontSize: 10),
-          ),
-          pw.SizedBox(height: 8),
-
-          _pdfField('Situação', r.thought),
-          _pdfField('Pensamento', r.thoughtAlt ?? '-'),
-          _pdfField('Emoção', r.emotion),
-          _pdfField('O que você fez', r.behavior ?? '-'),
-
-          pw.SizedBox(height: 6),
-          pw.Row(
-            children: [
-              pw.Text(
-                'Intensidade: ',
-                style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-              ),
-              pw.Container(
-                padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: pw.BoxDecoration(
-                  color: PdfColors.teal100,
-                  borderRadius: pw.BorderRadius.circular(8),
-                ),
-                child: pw.Text('${r.intensity}/10'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  pw.Widget _pdfField(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 8),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.grey800,
-            ),
-          ),
-          pw.Text(value),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _deleteRecord(ThoughtRecord r) async {
-    await _db.deleteRecordById(r.id);
-    await _loadRecords();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        title: const Text('Registros RPD'),
-        actions: [
-          IconButton(
-            tooltip: 'Filtrar datas',
-            icon: const Icon(Icons.filter_alt_outlined),
-            onPressed: () async {
-              await _pickDate(start: true);
-              await _pickDate(start: false);
-            },
-          ),
-          IconButton(
-            tooltip: 'Gerar PDF',
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            onPressed: _filtered.isEmpty ? null : _generatePdf,
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _filtered.length,
-        itemBuilder: (_, i) {
-          final r = _filtered[i];
-          return Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setModal) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                runSpacing: 16,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          r.thought,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 6),
-                        Text('${r.emotion} • ${r.intensity}/10'),
-                        const SizedBox(height: 4),
-                        Text(
-                          _df.format(r.createdAt),
-                          style: const TextStyle(color: Colors.black54, fontSize: 12),
-                        ),
-                      ],
-                    ),
+                  const Text(
+                    'Filtros',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                   ),
-                  Column(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, color: _teal2),
-                        onPressed: () async {
-                          final changed = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RecordDetailPage(record: r),
-                            ),
-                          );
-                          if (changed == true) _loadRecords();
-                        },
+
+                  // Emoção
+                  DropdownButtonFormField<String>(
+                    value: _emotionFilter,
+                    decoration: const InputDecoration(labelText: 'Emoção'),
+                    items: _records
+                        .map((e) => e.emotion)
+                        .toSet()
+                        .map(
+                          (e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(e),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                        onPressed: () => _deleteRecord(r),
+                    )
+                        .toList(),
+                    onChanged: (v) => setModal(() => _emotionFilter = v),
+                  ),
+
+                  // Intensidade
+                  DropdownButtonFormField<int>(
+                    value: _intensityFilter,
+                    decoration: const InputDecoration(labelText: 'Intensidade'),
+                    items: List.generate(
+                      10,
+                          (i) => DropdownMenuItem(
+                        value: i + 1,
+                        child: Text('${i + 1}'),
+                      ),
+                    ),
+                    onChanged: (v) => setModal(() => _intensityFilter = v),
+                  ),
+
+                  // Data inicial
+                  ListTile(
+                    title: Text(
+                      _startDate == null
+                          ? 'Data inicial'
+                          : 'Início: ${DateFormat('dd/MM/yyyy').format(_startDate!)}',
+                    ),
+                    trailing: const Icon(Icons.date_range),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: context,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                        initialDate: DateTime.now(),
+                      );
+                      if (d != null) setModal(() => _startDate = d);
+                    },
+                  ),
+
+                  // Data final
+                  ListTile(
+                    title: Text(
+                      _endDate == null
+                          ? 'Data final'
+                          : 'Fim: ${DateFormat('dd/MM/yyyy').format(_endDate!)}',
+                    ),
+                    trailing: const Icon(Icons.date_range),
+                    onTap: () async {
+                      final d = await showDatePicker(
+                        context: context,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                        initialDate: DateTime.now(),
+                      );
+                      if (d != null) setModal(() => _endDate = d);
+                    },
+                  ),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _emotionFilter = null;
+                              _intensityFilter = null;
+                              _startDate = null;
+                              _endDate = null;
+                              _filtered = List.from(_records);
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Limpar'),
+                        ),
+                      ),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _applyFilters();
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Aplicar'),
+                        ),
                       ),
                     ],
                   ),
                 ],
               ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // =========================
+  // PDF
+  // =========================
+  Future<void> _exportPdf() async {
+    final pdf = pw.Document();
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (_) => [
+          pw.Text(
+            'Relatório de Registros RPD',
+            style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.Text('Gerado em ${_df.format(DateTime.now())}'),
+          pw.SizedBox(height: 16),
+
+          ..._filtered.map(
+                (r) => pw.Container(
+              margin: const pw.EdgeInsets.only(bottom: 12),
+              padding: const pw.EdgeInsets.all(12),
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(),
+                borderRadius: pw.BorderRadius.circular(10),
+              ),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(_df.format(r.createdAt),
+                      style: pw.TextStyle(fontSize: 10)),
+                  pw.SizedBox(height: 6),
+
+                  pw.Text('Situação',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text(r.thought),
+
+                  pw.SizedBox(height: 6),
+                  pw.Text('Pensamento',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text(r.thoughtAlt ?? '-'),
+
+                  pw.SizedBox(height: 6),
+                  pw.Text('Emoção',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text(r.emotion),
+
+                  pw.SizedBox(height: 6),
+                  pw.Text('O que você fez',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text(r.behavior ?? '-'),
+
+                  pw.SizedBox(height: 6),
+                  pw.Text('Intensidade',
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text('${r.intensity}/10'),
+                ],
+              ),
             ),
-          );
-        },
+          ),
+        ],
       ),
+    );
+
+    await Printing.layoutPdf(onLayout: (_) => pdf.save());
+  }
+
+  // =========================
+  // UI
+  // =========================
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _header(),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _list(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _header() {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back),
+          ),
+          const Expanded(
+            child: Text(
+              'Registros RPD',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_alt_outlined),
+            onPressed: _openFilterModal,
+          ),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: _exportPdf,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _list() {
+    if (_filtered.isEmpty) {
+      return const Center(child: Text('Nenhum registro encontrado'));
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _filtered.length,
+      itemBuilder: (_, i) {
+        final r = _filtered[i];
+
+        return Card(
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CircleAvatar(
+                  backgroundColor: _teal2.withOpacity(.12),
+                  child: const Icon(Icons.notes, color: _teal2),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        r.thought,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 6),
+                      Text('${r.emotion} • ${r.intensity}/10'),
+                    ],
+                  ),
+                ),
+                Column(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: _teal2),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => NewRecordPage(record: r),
+                          ),
+                        );
+                        _loadRecords();
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.redAccent),
+                      onPressed: () async {
+                        await _db.deleteRecordById(r.id);
+                        _loadRecords();
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
