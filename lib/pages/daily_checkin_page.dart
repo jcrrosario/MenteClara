@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../db/app_database.dart';
 
 class DailyCheckInPage extends StatefulWidget {
   const DailyCheckInPage({super.key});
@@ -8,13 +9,15 @@ class DailyCheckInPage extends StatefulWidget {
 }
 
 class _DailyCheckInPageState extends State<DailyCheckInPage> {
+  final AppDatabase _db = AppDatabase();
+
   String? _selectedMood;
   double _intensity = 5;
   final TextEditingController _noteController = TextEditingController();
 
   final List<String> _moods = ['😟', '😐', '🙂', '😄', '😃'];
 
-  void _saveCheckIn() {
+  void _saveCheckIn() async {
     if (_selectedMood == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -24,8 +27,17 @@ class _DailyCheckInPageState extends State<DailyCheckInPage> {
       return;
     }
 
-    // Por enquanto só volta para a Home
-    // Depois você pode salvar no banco tranquilamente
+    // 🔹 NOVO: salva no banco
+    await _db.insertCheckIn(
+      mood: _selectedMood!,
+      intensity: _intensity.round(),
+      note: _noteController.text.trim().isEmpty
+          ? null
+          : _noteController.text.trim(),
+      createdAt: DateTime.now(),
+    );
+
+    // Mantém sua navegação original
     Navigator.pop(context, {
       'mood': _selectedMood,
       'intensity': _intensity.round(),
@@ -158,6 +170,7 @@ class _DailyCheckInPageState extends State<DailyCheckInPage> {
   @override
   void dispose() {
     _noteController.dispose();
+    _db.close(); // 🔹 NOVO
     super.dispose();
   }
 }

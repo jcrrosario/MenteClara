@@ -7,6 +7,7 @@ import 'new_record_page.dart';
 import 'record_detail_page.dart';
 import 'records_list_page.dart';
 import 'daily_checkin_page.dart';
+import 'checkin_list_page.dart';
 
 import '../data/record_repository.dart';
 import '../data/drift_record_repository.dart';
@@ -48,6 +49,13 @@ class _HomePageState extends State<HomePage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _openAllCheckIns() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CheckInListPage()),
+    );
   }
 
   Future<void> _openNewRecord() async {
@@ -157,7 +165,7 @@ class _HomePageState extends State<HomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => Who5IntroPage(),
+                            builder: (_) => const Who5IntroPage(),
                           ),
                         );
                       },
@@ -262,6 +270,17 @@ class _HomePageState extends State<HomePage> {
           const Text(
             'Como você está se sentindo agora?',
             style: TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _openAllCheckIns,
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'Ver histórico de check-ins',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
           const SizedBox(height: 14),
           Row(
@@ -401,7 +420,7 @@ class _HomePageState extends State<HomePage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: const Color(0xFF00B894), // VERDE DO APP
+        color: const Color(0xFF00B894),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

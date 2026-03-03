@@ -13,12 +13,10 @@ class Records extends Table {
 
   TextColumn get thought => text()();
 
-  // Novo: pensamento alternativo (pode ficar vazio)
   TextColumn get thoughtAlt => text().nullable()();
 
   TextColumn get emotion => text()();
 
-  // Novo: comportamento (pode ficar vazio)
   TextColumn get behavior => text().nullable()();
 
   IntColumn get intensity => integer()();
@@ -26,26 +24,48 @@ class Records extends Table {
   DateTimeColumn get createdAt => dateTime()();
 }
 
-@DriftDatabase(tables: [Records])
+@DataClassName('CheckInRecord')
+class CheckIns extends Table {
+  IntColumn get id => integer().autoIncrement()();
+
+  TextColumn get mood => text()(); // emoji
+
+  IntColumn get intensity => integer()();
+
+  TextColumn get note => text().nullable()();
+
+  DateTimeColumn get createdAt => dateTime()();
+}
+
+@DriftDatabase(tables: [Records, CheckIns])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (migrator, from, to) async {
-      // Migração do schema antigo (1) para o novo (2)
       if (from == 1) {
         await migrator.addColumn(records, records.thoughtAlt);
         await migrator.addColumn(records, records.behavior);
       }
+
+      if (from <= 2) {
+        await migrator.createTable(checkIns);
+      }
     },
   );
 
+  // =========================
+  // RECORDS (RPD)
+  // =========================
+
   Future<List<ThoughtRecord>> getAllRecords() {
-    return (select(records)..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
+    return (select(records)
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .get();
   }
 
   Future<int> insertRecord({
@@ -67,7 +87,6 @@ class AppDatabase extends _$AppDatabase {
       ),
     );
   }
-
 
   Future<int> updateRecordById({
     required int id,
@@ -92,6 +111,36 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> deleteRecordById(int id) {
     return (delete(records)..where((t) => t.id.equals(id))).go();
+  }
+
+  // =========================
+  // CHECK-IN
+  // =========================
+
+  Future<int> insertCheckIn({
+    required String mood,
+    required int intensity,
+    String? note,
+    required DateTime createdAt,
+  }) {
+    return into(checkIns).insert(
+      CheckInsCompanion.insert(
+        mood: mood,
+        intensity: intensity,
+        note: Value(note),
+        createdAt: createdAt,
+      ),
+    );
+  }
+
+  Future<List<CheckInRecord>> getAllCheckIns() {
+    return (select(checkIns)
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .get();
+  }
+
+  Future<int> deleteCheckInById(int id) {
+    return (delete(checkIns)..where((t) => t.id.equals(id))).go();
   }
 }
 
