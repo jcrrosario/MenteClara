@@ -1,5 +1,15 @@
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:fl_chart/fl_chart.dart';
+
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
+import 'package:intl/intl.dart';
 
 import '../db/app_database.dart';
 import '../models/record.dart';
@@ -23,6 +33,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final AppDatabase _db = AppDatabase();
+
+  final GlobalKey _chartKey = GlobalKey();
 
   bool _loading = true;
   List<ThoughtRecord> _recent = [];
@@ -107,6 +119,73 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       debugPrint('Erro ao carregar checkins: $e');
     }
+  }
+
+  Future<void> _exportDailyPdf() async {
+    final boundary =
+    _chartKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+
+    if (boundary == null) return;
+
+    final image = await boundary.toImage(pixelRatio: 3.0);
+    final byteData =
+    await image.toByteData(format: ui.ImageByteFormat.png);
+
+    if (byteData == null) return;
+
+    final pngBytes = byteData.buffer.asUint8List();
+
+    final pdf = pw.Document();
+    final today = DateFormat('dd_MM_yyyy').format(DateTime.now());
+
+    final checkins = await _db.getAllCheckIns();
+    final todayCheckins = checkins.where((c) {
+      final now = DateTime.now();
+      return c.createdAt.year == now.year &&
+          c.createdAt.month == now.month &&
+          c.createdAt.day == now.day;
+    }).toList();
+
+    pdf.addPage(
+      pw.MultiPage(
+        build: (context) => [
+          pw.Text(
+            'Monitor emocional diário',
+            style: pw.TextStyle(
+              fontSize: 20,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text('Data: $today'),
+          pw.SizedBox(height: 16),
+          pw.Image(pw.MemoryImage(pngBytes)),
+          pw.SizedBox(height: 24),
+          pw.Text(
+            'Registros do dia',
+            style: pw.TextStyle(
+              fontSize: 16,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          ...todayCheckins.map((c) {
+            final hour =
+            DateFormat('HH:mm').format(c.createdAt);
+            return pw.Padding(
+              padding: const pw.EdgeInsets.only(bottom: 6),
+              child: pw.Text(
+                  '$hour  -  Intensidade: ${c.intensity}/10  -  Nota: ${c.note ?? '-'}'),
+            );
+          }),
+        ],
+      ),
+    );
+
+    await Printing.sharePdf(
+      bytes: await pdf.save(),
+      filename: 'monitor_emocional_$today.pdf',
+    );
   }
 
   Future<void> _openAllCheckIns() async {
@@ -290,12 +369,22 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Monitor emocional diário',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            mainAxisAlignment:
+            MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Monitor emocional diário',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.picture_as_pdf),
+                onPressed: _exportDailyPdf,
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           const Text(
@@ -303,61 +392,55 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            height: 200,
-            child: LineChart(
-              LineChartData(
-                minX: _minX,
-                maxX: _maxX,
-                minY: 0,
-                maxY: 10,
-                gridData: FlGridData(show: true),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  leftTitles: AxisTitles(
-                    axisNameWidget: const Padding(
-                      padding: EdgeInsets.only(bottom: 4),
-                      child: Text(
-                        'Intensidade do humor',
-                        style: TextStyle(fontSize: 11),
+          RepaintBoundary(
+            key: _chartKey,
+            child: SizedBox(
+              height: 200,
+              child: LineChart(
+                LineChartData(
+                  minX: _minX,
+                  maxX: _maxX,
+                  minY: 0,
+                  maxY: 10,
+                  gridData: FlGridData(show: true),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 2,
+                        reservedSize: 32,
                       ),
                     ),
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 2,
-                      reservedSize: 32,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        interval: 1,
+                        getTitlesWidget: (value, meta) {
+                          return Text(
+                            '${value.toInt()}h',
+                            style: const TextStyle(fontSize: 10),
+                          );
+                        },
+                      ),
                     ),
+                    topTitles: const AxisTitles(
+                        sideTitles:
+                        SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(
+                        sideTitles:
+                        SideTitles(showTitles: false)),
                   ),
-                  bottomTitles: AxisTitles(
-                    axisNameWidget: const Text(
-                      'Hora do dia',
-                      style: TextStyle(fontSize: 11),
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: _moodSpots,
+                      isCurved: true,
+                      color: const Color(0xFF00B894),
+                      barWidth: 3,
+                      dotData: FlDotData(show: true),
                     ),
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 1,
-                      getTitlesWidget: (value, meta) {
-                        return Text(
-                          '${value.toInt()}h',
-                          style: const TextStyle(fontSize: 10),
-                        );
-                      },
-                    ),
-                  ),
-                  topTitles:
-                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles:
-                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ],
                 ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: _moodSpots,
-                    isCurved: true,
-                    color: const Color(0xFF00B894),
-                    barWidth: 3,
-                    dotData: FlDotData(show: true),
-                  ),
-                ],
               ),
             ),
           ),
@@ -381,7 +464,8 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -403,7 +487,8 @@ class _HomePageState extends State<HomePage> {
                   backgroundColor: Colors.white,
                   foregroundColor:
                   const Color(0xFF0AAEAB),
-                  padding: const EdgeInsets.symmetric(
+                  padding:
+                  const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 8,
                   ),
@@ -423,8 +508,9 @@ class _HomePageState extends State<HomePage> {
                 },
                 child: const Text(
                   'Registrar',
-                  style:
-                  TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                      fontWeight:
+                      FontWeight.w700),
                 ),
               ),
             ],
@@ -432,8 +518,9 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 6),
           const Text(
             'Como você está se sentindo agora?',
-            style:
-            TextStyle(color: Colors.white, fontSize: 13),
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 13),
           ),
           const SizedBox(height: 8),
           TextButton(
@@ -443,8 +530,9 @@ class _HomePageState extends State<HomePage> {
             ),
             child: const Text(
               'Ver histórico de check-ins',
-              style:
-              TextStyle(fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  fontWeight:
+                  FontWeight.w600),
             ),
           ),
           const SizedBox(height: 14),
@@ -478,8 +566,10 @@ class _HomePageState extends State<HomePage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black12),
+          borderRadius:
+          BorderRadius.circular(14),
+          border:
+          Border.all(color: Colors.black12),
           color: Colors.white,
         ),
         child: Column(
@@ -490,15 +580,16 @@ class _HomePageState extends State<HomePage> {
               radius: 18,
               backgroundColor:
               Colors.black.withOpacity(0.04),
-              child:
-              Icon(icon, color: Colors.black87),
+              child: Icon(icon,
+                  color: Colors.black87),
             ),
             const SizedBox(height: 12),
             Text(
               title,
               style: const TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w700,
+                fontWeight:
+                FontWeight.w700,
               ),
             ),
             const SizedBox(height: 4),
@@ -521,8 +612,10 @@ class _HomePageState extends State<HomePage> {
         BorderRadius.circular(14),
         onTap: _openNewRecord,
         child: Container(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 14, vertical: 18),
+          padding:
+          const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 18),
           decoration: BoxDecoration(
             borderRadius:
             BorderRadius.circular(14),
@@ -535,8 +628,8 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 10),
               const Text(
                 'Nenhum pensamento registrado ainda.',
-                style:
-                TextStyle(color: Colors.black54),
+                style: TextStyle(
+                    color: Colors.black54),
               ),
               const SizedBox(height: 8),
               Text(
@@ -575,23 +668,28 @@ class _HomePageState extends State<HomePage> {
             i++) ...[
               ListTile(
                 onTap: () =>
-                    _openDetail(_recent[i]),
+                    _openDetail(
+                        _recent[i]),
                 title: Text(
                   _recent[i].thought,
                   maxLines: 1,
                   overflow:
-                  TextOverflow.ellipsis,
+                  TextOverflow
+                      .ellipsis,
                 ),
                 subtitle: Text(
                   '${_recent[i].emotion} • ${_recent[i].intensity}/10',
                   maxLines: 1,
                   overflow:
-                  TextOverflow.ellipsis,
+                  TextOverflow
+                      .ellipsis,
                 ),
                 trailing:
-                const Icon(Icons.chevron_right),
+                const Icon(
+                    Icons.chevron_right),
               ),
-              if (i != _recent.length - 1)
+              if (i !=
+                  _recent.length - 1)
                 const Divider(
                     height: 1,
                     thickness: 0.5),
@@ -604,11 +702,13 @@ class _HomePageState extends State<HomePage> {
 
   Widget _tipOfDay() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding:
+      const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius:
         BorderRadius.circular(14),
-        color: const Color(0xFF00B894),
+        color:
+        const Color(0xFF00B894),
       ),
       child: Row(
         crossAxisAlignment:
@@ -617,20 +717,25 @@ class _HomePageState extends State<HomePage> {
           CircleAvatar(
             radius: 18,
             backgroundColor:
-            Colors.white.withOpacity(0.18),
+            Colors.white
+                .withOpacity(0.18),
             child: const Icon(
-                Icons.announcement_outlined,
-                color: Colors.white),
+                Icons
+                    .announcement_outlined,
+                color:
+                Colors.white),
           ),
           const SizedBox(width: 12),
           const Expanded(
             child: Column(
               crossAxisAlignment:
-              CrossAxisAlignment.start,
+              CrossAxisAlignment
+                  .start,
               children: [
                 Text(
                   'Desenvolvido por: Jean C. do Rosario',
-                  style: TextStyle(
+                  style:
+                  TextStyle(
                     color: Colors.white,
                     fontWeight:
                     FontWeight.w700,
@@ -640,13 +745,15 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   'Versão: 3',
                   style: TextStyle(
-                      color: Colors.white70,
+                      color:
+                      Colors.white70,
                       height: 1.3),
                 ),
                 Text(
                   'Tecnologia feita para o que você sente',
                   style: TextStyle(
-                      color: Colors.white70,
+                      color:
+                      Colors.white70,
                       height: 1.3),
                 ),
               ],
@@ -675,8 +782,8 @@ class _MoodDot extends StatelessWidget {
       backgroundColor:
       Colors.white.withOpacity(0.18),
       child: Text(emoji,
-          style:
-          const TextStyle(fontSize: 16)),
+          style: const TextStyle(
+              fontSize: 16)),
     );
   }
 }
