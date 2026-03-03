@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../db/app_database.dart';
 import '../models/record.dart';
@@ -26,10 +27,17 @@ class _HomePageState extends State<HomePage> {
   bool _loading = true;
   List<ThoughtRecord> _recent = [];
 
+  List<FlSpot> _moodSpots = [];
+  List<int> _moodHours = [];
+
+  double _minX = 0;
+  double _maxX = 23;
+
   @override
   void initState() {
     super.initState();
     _loadRecent();
+    _loadMoodData();
   }
 
   Future<void> _loadRecent() async {
@@ -51,11 +59,62 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _loadMoodData() async {
+    try {
+      final all = await _db.getAllCheckIns();
+      final today = DateTime.now();
+
+      final todayCheckins = all.where((c) =>
+      c.createdAt.year == today.year &&
+          c.createdAt.month == today.month &&
+          c.createdAt.day == today.day).toList();
+
+      Map<int, dynamic> groupedByHour = {};
+
+      for (var c in todayCheckins) {
+        final hour = c.createdAt.hour;
+
+        if (!groupedByHour.containsKey(hour)) {
+          groupedByHour[hour] = c;
+        } else {
+          if (c.createdAt.isAfter(groupedByHour[hour].createdAt)) {
+            groupedByHour[hour] = c;
+          }
+        }
+      }
+
+      final sortedHours = groupedByHour.keys.toList()..sort();
+
+      List<FlSpot> spots = [];
+      List<int> hours = [];
+
+      for (var hour in sortedHours) {
+        final c = groupedByHour[hour];
+        spots.add(FlSpot(hour.toDouble(), c.intensity.toDouble()));
+        hours.add(hour);
+      }
+
+      double minX = sortedHours.isNotEmpty ? sortedHours.first.toDouble() : 0;
+      double maxX = sortedHours.isNotEmpty ? sortedHours.last.toDouble() : 23;
+
+      if (!mounted) return;
+      setState(() {
+        _moodSpots = spots;
+        _moodHours = hours;
+        _minX = minX;
+        _maxX = maxX;
+      });
+    } catch (e) {
+      debugPrint('Erro ao carregar checkins: $e');
+    }
+  }
+
   Future<void> _openAllCheckIns() async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const CheckInListPage()),
     );
+    await _loadMoodData();
   }
 
   Future<void> _openNewRecord() async {
@@ -122,12 +181,15 @@ class _HomePageState extends State<HomePage> {
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
-          onRefresh: _loadRecent,
+          onRefresh: () async {
+            await _loadRecent();
+            await _loadMoodData();
+          },
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               Text(
-                '${_greeting()}, pessoa',
+                '${_greeting()}!',
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
@@ -136,11 +198,16 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 6),
               const Text(
                 'Vamos trazer clareza para sua mente hoje?',
-                style: TextStyle(fontSize: 14, color: Colors.black54),
+                style:
+                TextStyle(fontSize: 14, color: Colors.black54),
               ),
               const SizedBox(height: 16),
 
               _checkinCard(),
+
+              const SizedBox(height: 16),
+
+              _moodChart(),
 
               const SizedBox(height: 16),
 
@@ -165,7 +232,8 @@ class _HomePageState extends State<HomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const Who5IntroPage(),
+                            builder: (_) =>
+                            const Who5IntroPage(),
                           ),
                         );
                       },
@@ -177,7 +245,8 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 20),
 
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'Últimos Registros - RPD',
@@ -208,6 +277,95 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _moodChart() {
+    if (_moodSpots.isEmpty) return const SizedBox();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black12),
+        color: Colors.white,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Monitor emocional diário',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Como seu humor variou ao longo do dia',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 200,
+            child: LineChart(
+              LineChartData(
+                minX: _minX,
+                maxX: _maxX,
+                minY: 0,
+                maxY: 10,
+                gridData: FlGridData(show: true),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(
+                    axisNameWidget: const Padding(
+                      padding: EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        'Intensidade do humor',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 2,
+                      reservedSize: 32,
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    axisNameWidget: const Text(
+                      'Hora do dia',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      interval: 1,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          '${value.toInt()}h',
+                          style: const TextStyle(fontSize: 10),
+                        );
+                      },
+                    ),
+                  ),
+                  topTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: _moodSpots,
+                    isCurved: true,
+                    color: const Color(0xFF00B894),
+                    barWidth: 3,
+                    dotData: FlDotData(show: true),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _checkinCard() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -227,7 +385,8 @@ class _HomePageState extends State<HomePage> {
         children: [
           Row(
             children: [
-              const Icon(Icons.monitor_heart_outlined, color: Colors.white),
+              const Icon(Icons.monitor_heart_outlined,
+                  color: Colors.white),
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
@@ -242,26 +401,30 @@ class _HomePageState extends State<HomePage> {
               TextButton(
                 style: TextButton.styleFrom(
                   backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF0AAEAB),
+                  foregroundColor:
+                  const Color(0xFF0AAEAB),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 8,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius:
+                    BorderRadius.circular(10),
                   ),
                 ),
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const DailyCheckInPage(),
+                      builder: (_) =>
+                      const DailyCheckInPage(),
                     ),
                   );
                 },
                 child: const Text(
                   'Registrar',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                  style:
+                  TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
             ],
@@ -269,7 +432,8 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 6),
           const Text(
             'Como você está se sentindo agora?',
-            style: TextStyle(color: Colors.white, fontSize: 13),
+            style:
+            TextStyle(color: Colors.white, fontSize: 13),
           ),
           const SizedBox(height: 8),
           TextButton(
@@ -279,7 +443,8 @@ class _HomePageState extends State<HomePage> {
             ),
             child: const Text(
               'Ver histórico de check-ins',
-              style: TextStyle(fontWeight: FontWeight.w600),
+              style:
+              TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
           const SizedBox(height: 14),
@@ -318,12 +483,15 @@ class _HomePageState extends State<HomePage> {
           color: Colors.white,
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+          CrossAxisAlignment.start,
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: Colors.black.withOpacity(0.04),
-              child: Icon(icon, color: Colors.black87),
+              backgroundColor:
+              Colors.black.withOpacity(0.04),
+              child:
+              Icon(icon, color: Colors.black87),
             ),
             const SizedBox(height: 12),
             Text(
@@ -336,8 +504,9 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style:
-              const TextStyle(fontSize: 12, color: Colors.black54),
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: Colors.black54),
             ),
           ],
         ),
@@ -348,14 +517,17 @@ class _HomePageState extends State<HomePage> {
   Widget _recentSection() {
     if (_recent.isEmpty) {
       return InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+        BorderRadius.circular(14),
         onTap: _openNewRecord,
         child: Container(
-          padding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+          padding: const EdgeInsets.symmetric(
+              horizontal: 14, vertical: 18),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.black12),
+            borderRadius:
+            BorderRadius.circular(14),
+            border: Border.all(
+                color: Colors.black12),
             color: Colors.white,
           ),
           child: Column(
@@ -363,14 +535,18 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 10),
               const Text(
                 'Nenhum pensamento registrado ainda.',
-                style: TextStyle(color: Colors.black54),
+                style:
+                TextStyle(color: Colors.black54),
               ),
               const SizedBox(height: 8),
               Text(
                 'Começar agora',
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary,
+                  fontWeight:
+                  FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 10),
@@ -381,33 +557,44 @@ class _HomePageState extends State<HomePage> {
     }
 
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius:
+      BorderRadius.circular(14),
       onTap: _openAllRecords,
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.black12),
+          borderRadius:
+          BorderRadius.circular(14),
+          border:
+          Border.all(color: Colors.black12),
           color: Colors.white,
         ),
         child: Column(
           children: [
-            for (int i = 0; i < _recent.length; i++) ...[
+            for (int i = 0;
+            i < _recent.length;
+            i++) ...[
               ListTile(
-                onTap: () => _openDetail(_recent[i]),
+                onTap: () =>
+                    _openDetail(_recent[i]),
                 title: Text(
                   _recent[i].thought,
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                  TextOverflow.ellipsis,
                 ),
                 subtitle: Text(
                   '${_recent[i].emotion} • ${_recent[i].intensity}/10',
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  overflow:
+                  TextOverflow.ellipsis,
                 ),
-                trailing: const Icon(Icons.chevron_right),
+                trailing:
+                const Icon(Icons.chevron_right),
               ),
               if (i != _recent.length - 1)
-                const Divider(height: 1, thickness: 0.5),
+                const Divider(
+                    height: 1,
+                    thickness: 0.5),
             ],
           ],
         ),
@@ -419,35 +606,48 @@ class _HomePageState extends State<HomePage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius:
+        BorderRadius.circular(14),
         color: const Color(0xFF00B894),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+        CrossAxisAlignment.start,
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor: Colors.white.withOpacity(0.18),
-            child:
-            const Icon(Icons.announcement_outlined, color: Colors.white),
+            backgroundColor:
+            Colors.white.withOpacity(0.18),
+            child: const Icon(
+                Icons.announcement_outlined,
+                color: Colors.white),
           ),
           const SizedBox(width: 12),
           const Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+              CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Desenvolvido por: Serenyo',
+                  'Desenvolvido por: Jean C. do Rosario',
                   style: TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w700,
+                    fontWeight:
+                    FontWeight.w700,
                   ),
                 ),
                 SizedBox(height: 8),
                 Text(
+                  'Versão: 3',
+                  style: TextStyle(
+                      color: Colors.white70,
+                      height: 1.3),
+                ),
+                Text(
                   'Tecnologia feita para o que você sente',
-                  style:
-                  TextStyle(color: Colors.white70, height: 1.3),
+                  style: TextStyle(
+                      color: Colors.white70,
+                      height: 1.3),
                 ),
               ],
             ),
@@ -472,8 +672,11 @@ class _MoodDot extends StatelessWidget {
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: 16,
-      backgroundColor: Colors.white.withOpacity(0.18),
-      child: Text(emoji, style: const TextStyle(fontSize: 16)),
+      backgroundColor:
+      Colors.white.withOpacity(0.18),
+      child: Text(emoji,
+          style:
+          const TextStyle(fontSize: 16)),
     );
   }
 }
