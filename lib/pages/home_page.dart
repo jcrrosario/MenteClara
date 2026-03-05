@@ -45,6 +45,8 @@ class _HomePageState extends State<HomePage> {
   double _minX = 0;
   double _maxX = 23;
 
+  DateTime _selectedDate = DateTime.now();
+
   @override
   void initState() {
     super.initState();
@@ -74,7 +76,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _loadMoodData() async {
     try {
       final all = await _db.getAllCheckIns();
-      final today = DateTime.now();
+      final today = _selectedDate;
 
       final todayCheckins = all.where((c) =>
       c.createdAt.year == today.year &&
@@ -121,6 +123,23 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+      });
+
+      await _loadMoodData();
+    }
+  }
+
   Future<void> _exportDailyPdf() async {
     final boundary =
     _chartKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
@@ -136,11 +155,11 @@ class _HomePageState extends State<HomePage> {
     final pngBytes = byteData.buffer.asUint8List();
 
     final pdf = pw.Document();
-    final today = DateFormat('dd_MM_yyyy').format(DateTime.now());
+    final today = DateFormat('dd_MM_yyyy').format(_selectedDate);
 
     final checkins = await _db.getAllCheckIns();
     final todayCheckins = checkins.where((c) {
-      final now = DateTime.now();
+      final now = _selectedDate;
       return c.createdAt.year == now.year &&
           c.createdAt.month == now.month &&
           c.createdAt.day == now.day;
@@ -380,9 +399,17 @@ class _HomePageState extends State<HomePage> {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.picture_as_pdf),
-                onPressed: _exportDailyPdf,
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.calendar_today),
+                    onPressed: _pickDate,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.picture_as_pdf),
+                    onPressed: _exportDailyPdf,
+                  ),
+                ],
               ),
             ],
           ),
@@ -390,6 +417,11 @@ class _HomePageState extends State<HomePage> {
           const Text(
             'Como seu humor variou ao longo do dia',
             style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            DateFormat('dd/MM/yyyy').format(_selectedDate),
+            style: const TextStyle(fontSize: 11, color: Colors.black45),
           ),
           const SizedBox(height: 16),
           RepaintBoundary(
