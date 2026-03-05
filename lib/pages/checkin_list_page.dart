@@ -70,7 +70,7 @@ class _CheckInListPageState extends State<CheckInListPage> {
           ),
           const Expanded(
             child: Text(
-              'Histórico de Check-in',
+              'Histórico Emocional',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,

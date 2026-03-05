@@ -474,7 +474,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'Check-in Diário',
+                  'Monitor Emocional',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -529,7 +529,7 @@ class _HomePageState extends State<HomePage> {
               foregroundColor: Colors.white,
             ),
             child: const Text(
-              'Ver histórico de check-ins',
+              'Ver histórico',
               style: TextStyle(
                   fontWeight:
                   FontWeight.w600),

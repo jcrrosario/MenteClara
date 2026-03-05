@@ -50,7 +50,7 @@ class _DailyCheckInPageState extends State<DailyCheckInPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Check-in Diário'),
+        title: const Text('Check-in'),
       ),
       body: SafeArea(
         child: ListView(
